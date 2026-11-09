@@ -7,7 +7,7 @@ import { Tip, cx } from './pb-kit.js';
 // Rutas relativas a la raíz del sitio (funcionan en localhost y en GitHub Pages bajo /magnar-flows/).
 const ROOT = new URL('..', import.meta.url).pathname;
 const IS_B = typeof window !== 'undefined' && window.PR_VARIANT === 'list';
-export const SIDEBAR_LINKS = { knowledge: ROOT + (IS_B ? 'playbooks-lista/' : 'playbooks-refinada/'), tasks: ROOT + 'tasks-refinada/' + (IS_B ? '?v=b' : '') };
+export const SIDEBAR_LINKS = { knowledge: ROOT + (IS_B ? 'playbooks-lista/' : 'playbooks-refinada/'), tasks: ROOT + 'tasks-final/' + (IS_B ? '?v=b' : '') };
 
 // ------------------------------------------------------------ pestañas
 // sections: [{ key, label, icon }]. En modo compacto solo la activa muestra su nombre;

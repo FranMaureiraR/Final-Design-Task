@@ -1,15 +1,15 @@
 // Scheduled tasks · versión final.
-// Home: arriba, al centro, la pregunta a Magnar ("What task do you want to set up?") con su composer, como el home de Magnar,
-// e ideas en cards sacadas de tus tasks recientes. Abajo, pestañas All / Active / Paused con el buscador y "New task",
-// y la tabla de Playbooks B. Al abrir o crear una task, la tabla pasa a columna y la task se abre en un panel de media pantalla.
-// La task se lee como un plan de 4 pasos (When · Do · Where it runs · Notify), en cards como las reglas de un playbook.
-// Solo usa los campos que Magnar ya tiene. Para el prototipo, el composer y el cuadro "AI" traen un texto fijo: solo se envía.
+// Home: arriba, al centro, el módulo de Magnar ("What task do you want to set up?") con ideas de tus tasks recientes.
+// En el prototipo es solo visual: se puede hacer click, pero no crea nada. Las tasks se crean con "New task".
+// Abajo, pestañas All / Active / Paused con el buscador y "New task", y la tabla de Playbooks B.
+// Al abrir o crear una task, la tabla pasa a columna y la task se abre en un panel de media pantalla:
+// título y descripción arriba, y un cuadro por tema (Schedule, Where it runs, Notifications, Run history).
+// Solo usa los campos que Magnar ya tiene.
 //
 // Estados por URL:
 //   #/                   home              ?empty=1 sin tasks · ?status=paused · ?q=…
-//   #/?chat=schedule     chat preguntando cuándo · ?chat=notify preguntando cómo avisar · ?chat=draft con el plan listo
-//   #/<id>               task abierta      ?step=when paso abierto · ?dirty=1 con 2 cambios sin guardar · ?running=1 · ?wide=1 sin la lista
-//   #/new                crear             ?demo=1 con datos · ?ai=1 con el cuadro "AI" abierto
+//   #/<id>               task abierta      ?dirty=1 con 2 cambios sin guardar · ?running=1 · ?wide=1 sin la lista
+//   #/new                crear             ?demo=1 con datos
 //   ?split=50 (antes del #) vista dividida · ?v=b (antes del #) el menú lleva a Playbooks versión B
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from '../vendor/preact-htm.js';
 import { Icon } from '../shared/icons.js';
@@ -19,7 +19,7 @@ import { splitParam } from '../shared/playbooks-seed.js';
 import { useHashState } from '../shared/redesign-ui.js';
 import { cx, Tip, MenuButton, SearchBox, ghost } from '../shared/pb-kit.js';
 import { EmptyState, SaveBar, SIDEBAR_LINKS } from '../shared/pr-ui.js';
-import { WEEKDAYS, defaultSchedule, fmtTime, summary, nextRuns, tzOffset, parseNatural } from '../tasks/schedule.js';
+import { WEEKDAYS, defaultSchedule, fmtTime, summary, nextRuns, tzOffset } from '../tasks/schedule.js';
 
 // ------------------------------------------------------------ datos de muestra (simples a propósito)
 const sch = (p) => ({ ...defaultSchedule(), tz: 'America/Santiago', ...p });
@@ -54,7 +54,6 @@ const CONV = [{ key: 'new', label: 'New conversation each run' }, { key: 'existi
 const CONVERSATIONS = [{ key: 'c1', label: 'Ley del trabajador' }, { key: 'c2', label: 'Revisión de NDA' }];
 const PROJECTS = [{ key: '', label: 'No project' }, { key: 'Clientes', label: 'Clientes' }];
 const TIERS = [['auto', 'Auto'], ['low', 'Low'], ['mid', 'Mid'], ['high', 'High']].map(([key, label]) => ({ key, label }));
-const STATUS_OPTS = [{ key: 'active', label: 'Active', lead: html`<span class="tk-st"><i></i></span>` }, { key: 'paused', label: 'Paused', lead: html`<span class="tk-st is-paused"><i></i></span>` }];
 const FIELDS = ['name', 'instructions', 'conversation', 'conversationId', 'project', 'tier', 'push', 'email', 'status'];
 const blank = () => ({ name: '', instructions: '', conversation: 'new', conversationId: 'c1', project: '', tier: 'auto', schedule: sch({ repeat: 'weekly', days: [1] }), push: true, email: false });
 const lbl = (opts, k) => opts.find((o) => o.key === (k ?? ''))?.label;
@@ -71,7 +70,6 @@ function freq(s) {
   return summary(s);
 }
 const notifLabel = (t) => [t.push && 'Push', t.email && 'Email'].filter(Boolean).join(' and ') || 'Only in the conversation';
-const whereLabel = (t) => [t.conversation === 'new' ? 'New conversation each run' : lbl(CONVERSATIONS, t.conversationId), t.project, lbl(TIERS, t.tier) + ' tier'].filter(Boolean).join(' · ');
 const changes = (a, b) => (!a || !b ? 0 : FIELDS.filter((k) => a[k] !== b[k]).length + (JSON.stringify(a.schedule) !== JSON.stringify(b.schedule) ? 1 : 0));
 
 // fechas
@@ -82,114 +80,32 @@ const nextLabel = (d) => { const n = dayDiff(d); return (n === 0 ? 'Today' : n =
 const fmtRunAt = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + t12(d);
 const nextOf = (t) => (t.status === 'paused' ? null : nextRuns(t.schedule, 1)[0] || null);
 
-// ------------------------------------------------------------ chat: interpretar lo que escribe la persona
-// Lo mismo que hace el botón "AI" de Magnar (parseNatural), más "weekdays" / "días hábiles".
-const WHEN = /\b(every|each|daily|weekly|monthly|weekdays?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|tomorrow|cada|todos|todas|diari[oa]|semanal|mensual|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bados?|domingos?|h[aá]biles)\b|\bat \d|\ba las \d|\d\s?(am|pm)\b/i;
-function readSchedule(text) {
-  if (!WHEN.test(text)) return null;
-  const s = parseNatural(text, sch({}));
-  if (/weekdays?|business days?|d[ií]as h[aá]biles|lunes a viernes|monday to friday/i.test(text)) { s.repeat = 'weekly'; s.days = [1, 2, 3, 4, 5]; }
-  return s;
-}
-function readTask(text) {
-  // Se separa el "cuándo" del "qué": "Todos los viernes a las 5, resume los NDA" → "Resume los NDA".
-  const clean = text.trim().replace(/\s+/g, ' ');
-  const parts = clean.split(/\s*[,;]\s*/).filter((p) => !WHEN.test(p));
-  let body = (parts.join(', ') || clean)
-    .split(/\s+(?:every|each|daily|weekly|monthly|on (?:mon|tue|wed|thu|fri|sat|sun)\w*|at \d|cada|todos los|todas las|a las \d|los (?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bados|domingos))\b/i)[0]
-    .replace(/^(please|por favor|quiero que|i want you to|can you)\s+/i, '').replace(/[.,;:]+$/, '');
-  if (body.length < 4) body = clean.replace(/[.,;:]+$/, '');
-  body = body.charAt(0).toUpperCase() + body.slice(1);
-  const name = body.length > 42 ? body.slice(0, 40).replace(/\s+\S*$/, '') + '…' : body;
-  return { name, instructions: /[.!?]$/.test(body) ? body : body + '.' };
-}
-// Texto fijo que aparece al hacer click en el composer, según lo que Magnar está preguntando.
-const FIXED = {
-  idle: 'Todos los lunes a las 9, resume los contratos que se subieron la semana pasada',
-  schedule: 'Every Monday at 9:00 AM',
-  notify: 'Push',
-  done: 'Cada viernes a las 5, avísame qué NDA siguen sin firmar',
-};
-// Ideas a partir de tus tasks recientes
+// ------------------------------------------------------------ home: el módulo de Magnar (solo visual en el prototipo)
+// Se puede hacer click y aparece un texto de ejemplo; enviar no hace nada. Las tasks se crean con "New task".
+const SAMPLE = 'Todos los lunes a las 9, resume los contratos que se subieron la semana pasada';
 const IDEAS = [
   { title: 'NDA firmados', from: 'NDA pendientes', text: 'Todos los viernes a las 5, resume los NDA que se firmaron en la semana' },
   { title: 'Vencen este mes', from: 'Contratos por vencer', text: 'El primer día de cada mes, dime qué contratos vencen ese mes' },
   { title: 'Novedades laborales', from: 'Cambios en la ley laboral', text: 'Cada lunes a las 8, resume los cambios en la ley laboral' },
 ];
-// Nombre corto para los textos fijos (como lo haría Magnar)
-const PRESET_NAMES = { [FIXED.idle]: 'Resumen de contratos nuevos', [FIXED.done]: 'NDA sin firmar', ...Object.fromEntries(IDEAS.map((x) => [x.text, x.title])) };
-const WHEN_CHIPS = [
-  { label: 'Every weekday at 9:00 AM', s: { repeat: 'weekly', days: [1, 2, 3, 4, 5], time: '09:00' } },
-  { label: 'Every Monday at 9:00 AM', s: { repeat: 'weekly', days: [1], time: '09:00' } },
-  { label: 'Every day at 8:00 AM', s: { repeat: 'daily', time: '08:00' } },
-  { label: 'First day of every month', s: { repeat: 'monthly', monthOn: 'day', monthDay: 1, time: '09:00' } },
-];
-const NOTIFY_CHIPS = [
-  { label: 'Push', push: true, email: false }, { label: 'Email', push: false, email: true },
-  { label: 'Push and email', push: true, email: true }, { label: 'Only in the conversation', push: false, email: false },
-];
-
-// ------------------------------------------------------------ home: pregunta a Magnar, al centro
-function Ask({ chat, send, pick, createDraft, reviewDraft, reset, openTask, compact }) {
+function Ask({ compact }) {
   const [text, setText] = useState('');
-  const thread = useRef();
-  const started = chat.msgs.length > 0;
-  const fixed = FIXED[chat.step] || '';
-  useEffect(() => { setText(''); }, [chat.step]);
-  useLayoutEffect(() => { const t = thread.current; if (t) t.scrollTo({ top: t.scrollHeight, behavior: 'smooth' }); }, [chat.msgs.length, chat.typing]);
-  const fill = (v) => { if (!chat.typing && (v || fixed)) setText(v || fixed); };
-  const submit = (e) => { e?.preventDefault(); if (!text.trim() || chat.typing) return; send(text.trim()); setText(''); };
-  const last = chat.msgs[chat.msgs.length - 1];
-  const canWrite = chat.step !== 'draft';
-  return html`<section class=${cx('tf-ask', started && 'is-started', compact && 'is-hidden')} aria-label="Ask Magnar to set up a task" inert=${compact}>
+  return html`<section class=${cx('tf-ask', compact && 'is-hidden')} aria-label="Ask Magnar" inert=${compact}>
     <div class="tf-ask-in"><div class="tf-ask-pad">
       <h2 class="tf-hello">What task do you want to set up?</h2>
-      <p class="tf-sub">Tell Magnar what to do and when. It asks for anything missing.</p>
-      ${started && html`<div class="tf-thread" ref=${thread} aria-live="polite">
-        ${chat.msgs.map((m, i) => m.from === 'me'
-          ? html`<div class="tf-msg is-me" key=${i}><p>${m.text}</p></div>`
-          : html`<div class="tf-msg is-ai" key=${i}>
-              ${m.text && html`<p>${m.text}</p>`}
-              ${m.draft && html`<${DraftPlan} d=${m.draft} done=${m.done} onCreate=${createDraft} onReview=${reviewDraft} onOpen=${() => openTask(m.done)} />`}
-              ${m.chips && m === last && !chat.typing && html`<div class="tf-chips">${m.chips.map((c) => html`<button type="button" class="tf-chip" onClick=${() => pick(c)}>${c.label}</button>`)}</div>`}
-            </div>`)}
-        ${chat.typing && html`<div class="tf-msg is-ai"><span class="tf-typing" aria-label="Magnar is typing"><i></i><i></i><i></i></span></div>`}
-      </div>`}
-      <form class=${cx('tf-composer', text && 'is-filled')} onSubmit=${submit} onClick=${() => canWrite && !text && fill()}>
-        <textarea rows="2" readonly aria-label="Describe a task" value=${text} onFocus=${() => canWrite && !text && fill()}
-          placeholder=${!canWrite ? 'Create the task, or review it first' : started ? 'Reply to Magnar…' : 'Describe a task and when it should run…'}
-          onKeyDown=${(e) => { if (e.key === 'Enter' && !e.shiftKey) submit(e); }}></textarea>
-        <div class="tf-composer-bar">
-          ${started ? html`<button type="button" class="tf-reset" onClick=${(e) => { e.stopPropagation(); reset(); setText(''); }}><${Icon} name="NotePencil" />Start over</button>` : html`<span></span>`}
-          <button type="submit" class="tf-send" aria-label="Send" disabled=${!text.trim() || chat.typing}><${Icon} name="ArrowUp" /></button>
-        </div>
+      <p class="tf-sub">Tell Magnar what to do and when.</p>
+      <form class=${cx('tf-composer', text && 'is-filled')} onSubmit=${(e) => e.preventDefault()} onClick=${() => !text && setText(SAMPLE)}>
+        <textarea rows="2" readonly aria-label="Describe a task" value=${text} placeholder="Describe a task and when it should run…"></textarea>
+        <div class="tf-composer-bar"><span></span><button type="submit" class="tf-send" aria-label="Send" disabled=${!text}><${Icon} name="ArrowUp" /></button></div>
       </form>
-      ${!started && html`<div class="tf-ideas">
+      <div class="tf-ideas">
         <h3 class="pb-eyebrow">From your recent tasks</h3>
-        <div class="tf-idea-row">${IDEAS.map((x, i) => html`<button type="button" class="tf-idea" style=${`animation-delay:${80 + i * 40}ms`} onClick=${() => fill(x.text)}>
+        <div class="tf-idea-row">${IDEAS.map((x, i) => html`<button type="button" class="tf-idea" style=${`animation-delay:${80 + i * 40}ms`} onClick=${() => setText(x.text)}>
           <span class="pb-vis is-shared"><${Icon} name="Clock" /></span>
           <span class="t">${x.title}</span><span class="d">Like ${x.from}</span></button>`)}</div>
-      </div>`}
+      </div>
     </div></div>
   </section>`;
-}
-
-// ------------------------------------------------------------ el plan (estilo Front): 4 pasos numerados, unidos por una línea
-const STEPS = [
-  { key: 'when', label: 'When', note: 'How often it runs' },
-  { key: 'do', label: 'Do', note: 'What Magnar does each time' },
-  { key: 'where', label: 'Where it runs', note: 'Conversation, project and agent tier' },
-  { key: 'notify', label: 'Notify', note: 'Only when the agent requests an update' },
-];
-const stepValue = (k, d) => (k === 'when' ? freq(d.schedule) : k === 'do' ? d.instructions || 'Add instructions' : k === 'where' ? whereLabel(d) : notifLabel(d));
-// Versión corta dentro del chat
-function DraftPlan({ d, done, onCreate, onReview, onOpen }) {
-  return html`<div class=${cx('tf-plan-card', done && 'is-done')}>
-    <div class="h"><b>${d.name}</b>${done && html`<span class="ok"><${Icon} name="CheckCircle" />Created</span>`}</div>
-    <ol class="tf-mini">${STEPS.map((s, i) => html`<li><span class="pr-num">${String(i + 1).padStart(2, '0')}</span><span class="k">${s.label}</span><span class="v">${stepValue(s.key, d)}</span></li>`)}</ol>
-    ${done ? html`<div class="f"><button type="button" class="pb-btn pb-btn-secondary sm" onClick=${onOpen}>Open task<${Icon} name="ArrowRight" /></button></div>`
-      : html`<div class="f"><button type="button" class="pb-btn pb-btn-ghost sm" onClick=${onReview}>Review details</button><button type="button" class="pb-btn pb-btn-primary sm" onClick=${onCreate}>Create task</button></div>`}
-  </div>`;
 }
 
 // ------------------------------------------------------------ lista (misma tabla que Playbooks B)
@@ -226,122 +142,82 @@ function StatusTabs({ value, onChange, counts, trailing }) {
   </div>`;
 }
 
-// ------------------------------------------------------------ campos (mismos que Magnar, mismos estilos de input que Playbooks)
-const Field = ({ label, id, children }) => html`<div class="tk-field"><label class="pr-flabel" for=${id}>${label}</label>${children}</div>`;
-function Pick({ id, value, options, onChange, icon, width = 220, wide }) {
+// ------------------------------------------------------------ panel: controles sobrios (texto con borde fino, sin rellenos)
+function Pick({ value, options, onChange, icon, width = 220, label }) {
   const o = options.find((x) => x.key === value) || options[0];
   return html`<${MenuButton} items=${options} selected=${[value]} width=${width} onSelect=${onChange} cls=${options.length > 8 ? 'tr-scroll' : undefined}
-    trigger=${(p) => html`<button id=${id} type="button" ...${p} class=${cx('tk-select', wide && 'is-wide')}>${icon && html`<${Icon} name=${icon} />`}<span>${o.label}</span>${o.count && html`<span class="off">${o.count}</span>`}<${Icon} name="CaretDown" class="chev" /></button>`} />`;
+    trigger=${(p) => html`<button type="button" ...${p} aria-label=${label} class="tf-sel">${icon && html`<${Icon} name=${icon} />`}<span>${o.label}</span>${o.count && html`<span class="off">${o.count}</span>`}<${Icon} name="CaretDown" class="chev" /></button>`} />`;
 }
-const AI_TEXT = 'Every Friday at 9 AM';
-function Schedule({ s, setS, aiOpen }) {
-  const [ai, setAi] = useState(!!aiOpen);
-  const [aiText, setAiText] = useState(aiOpen ? AI_TEXT : '');
-  const generate = () => { setS(readSchedule(aiText) || parseNatural(aiText, s)); setAi(false); setAiText(''); };
-  const runs = nextRuns(s, 3);
-  return html`<div>
-    <div class="tk-sched">
-      <span class="k">Repeat</span><div class="v"><${Pick} value=${s.repeat} options=${REPEAT} onChange=${(v) => setS({ repeat: v })} />
-        <span class="tk-ai-wrap"><button type="button" class=${cx('tk-select', ai && 'is-on')} aria-expanded=${ai} onClick=${() => setAi(!ai)}><${Icon} name="Sparkle" /><span>AI</span></button>
-        ${ai && html`<div class="pb-menu tk-ai" role="dialog" aria-label="Describe when it should run">
-          <label class="pr-flabel" for="t-ai">Describe when it should run</label>
-          <input id="t-ai" class="pr-filled" readonly placeholder="Click to write" value=${aiText} onFocus=${() => !aiText && setAiText(AI_TEXT)} onClick=${() => !aiText && setAiText(AI_TEXT)}
-            onKeyDown=${(e) => e.key === 'Enter' && aiText.trim() && generate()} />
-          <div class="tk-ai-foot"><button type="button" class="pb-btn pb-btn-primary sm" disabled=${!aiText.trim()} onClick=${generate}>Generate</button></div>
-        </div>`}</span></div>
-      ${s.repeat === 'weekly' && html`<span class="k">Days</span><div class="v tk-days">${WEEKDAYS.map((w) => html`<button type="button" class="tk-day-btn" aria-pressed=${s.days.includes(w.v)}
-        onClick=${() => setS({ days: s.days.includes(w.v) ? (s.days.length > 1 ? s.days.filter((x) => x !== w.v) : s.days) : [...s.days, w.v] })}>${w.short}</button>`)}</div>`}
-      ${s.repeat !== 'interval' && html`<span class="k">Time</span><div class="v"><${Pick} value=${s.time} options=${TIMES} onChange=${(v) => setS({ time: v })} icon="Clock" width=${140} />
-        <${Pick} value=${s.tz} options=${ZONES} onChange=${(v) => setS({ tz: v })} icon="Globe" width=${300} /></div>`}
-    </div>
-    ${runs.length > 0 && html`<p class="tf-runs num"><span>Next runs</span>${runs.map((d) => fmtRunAt(d)).join('  ·  ')}</p>`}
-  </div>`;
+// Días como la fila de un calendario: letras en círculo, el elegido en negro
+const DAY_LETTER = { 1: 'M', 2: 'T', 3: 'W', 4: 'T', 5: 'F', 6: 'S', 0: 'S' };
+function Days({ days, onChange }) {
+  return html`<div class="tf-week" role="group" aria-label="Days">${WEEKDAYS.map((w) => html`<button type="button" class="tf-day" aria-pressed=${days.includes(w.v)} title=${w.long}
+    onClick=${() => onChange(days.includes(w.v) ? (days.length > 1 ? days.filter((x) => x !== w.v) : days) : [...days, w.v])}>${DAY_LETTER[w.v]}</button>`)}</div>`;
 }
+const Row = ({ k, children }) => html`<div class="tf-row"><span class="k">${k}</span><div class="v">${children}</div></div>`;
+const Box = ({ n, title, children, extra }) => html`<section class="tf-box"><h3 class="tf-box-h">${n && html`<span class="n num">${n}</span>`}${title}${extra && html`<span class="grow"></span>${extra}`}</h3>${children}</section>`;
 
-// Un paso del plan: card como la regla de un playbook (número, título y una línea; se abre para editar)
-function Step({ n, step, d, open, toggle, children }) {
-  return html`<li class=${cx('pr-rule tf-step', open && 'is-open')} data-step=${step.key}>
-    <div class="pr-rule-head" role="button" tabindex="0" aria-expanded=${open ? 'true' : 'false'} onClick=${toggle}
-      onKeyDown=${(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(); } }}>
-      <span class="pr-num">${String(n).padStart(2, '0')}</span>
-      <span class="txt"><span class="title">${step.label}</span><span class=${cx('prev', step.key === 'do' && !d.instructions && 'is-empty')}>${open ? step.note : stepValue(step.key, d)}</span></span>
-      <span class="pr-chev"><${Icon} name="CaretDown" /></span>
-    </div>
-    <div class="pr-rule-body" inert=${!open}><div><div class="pr-rule-pad">${children}</div></div></div>
-  </li>`;
-}
-
-// ------------------------------------------------------------ panel: task abierta o nueva (misma jerarquía que el playbook)
-function TaskPane({ t, isNew, draft, update, running, back, close, onRun, onPause, onDelete, aiOpen, onCreate, initStep }) {
+// ------------------------------------------------------------ panel: task abierta o nueva
+// Jerarquía: título y descripción (las instrucciones) arriba, en su cuadro; después un cuadro por tema, solo con su titular.
+function TaskPane({ t, isNew, draft, update, running, back, close, onRun, onPause, onDelete, onCreate }) {
   const d = draft;
   const set = (p) => update((x) => ({ ...x, ...p }));
   const setS = (p) => update((x) => ({ ...x, schedule: { ...x.schedule, ...p } }));
-  const [open, setOpen] = useState(() => new Set(isNew ? STEPS.map((s) => s.key) : initStep ? [initStep] : []));
-  const toggle = (k) => setOpen((o) => { const x = new Set(o); x.has(k) ? x.delete(k) : x.add(k); return x; });
+  const s = d.schedule;
   const n = !isNew && nextOf({ ...t, ...d });
   const ok = d.name.trim() && d.instructions.trim();
-  const paused = !isNew && d.status === 'paused';
-  return html`<div class="pr-scroll"><div class="pr-detail tf-detail pr-enter" data-flip="page">
-    <div>
-      ${back}
+  return html`<div class="pr-scroll"><div class="tf-pane pr-enter" data-flip="page"><div>
+    ${back}
+    <section class="tf-box tf-head">
       <nav class="pr-crumb" aria-label="Breadcrumb"><a href="#/" onClick=${(e) => { e.preventDefault(); close(); }}>Scheduled tasks</a><span>/</span><span class="cur">${isNew ? 'New task' : d.name || 'Untitled task'}</span></nav>
-      <div class="pr-head">
-        <textarea class="pb-inline pr-title" rows="1" aria-label="Task name" placeholder=${isNew ? 'Untitled task' : 'Untitled task'} value=${d.name}
+      <div class="tf-title-row">
+        <textarea class="pb-inline pr-title" rows="1" aria-label="Task name" placeholder="Untitled task" value=${d.name}
           onKeyDown=${(e) => e.key === 'Enter' && e.preventDefault()} onInput=${(e) => set({ name: e.target.value.replace(/\n/g, ' ') })}></textarea>
-        ${!isNew && html`<div class="pr-edited num">${running ? 'Running now' : n ? 'Next ' + nextLabel(n) : 'Paused'}
-          <${MenuButton} align="end" width=${190} items=${[
-              { key: 'run', label: 'Run now', lead: html`<${Icon} name="Play" />` }, 'sep',
-              { key: 'delete', label: 'Delete task', danger: true, lead: html`<${Icon} name="Trash" />` }]}
-            onSelect=${(k) => (k === 'run' ? onRun() : onDelete())}
-            trigger=${(p) => html`<button type="button" ...${p} class="pb-icon-btn sm" style="margin-left:4px" aria-label="Task options"><${Icon} name="DotsThree" /></button>`} /></div>`}
+        ${!isNew && html`<${MenuButton} align="end" width=${190} items=${[
+            { key: 'run', label: 'Run now', lead: html`<${Icon} name="Play" />` },
+            { key: 'pause', label: d.status === 'paused' ? 'Resume' : 'Pause', lead: html`<${Icon} name=${d.status === 'paused' ? 'Play' : 'Pause'} />` }, 'sep',
+            { key: 'delete', label: 'Delete task', danger: true, lead: html`<${Icon} name="Trash" />` }]}
+          onSelect=${(k) => (k === 'run' ? onRun() : k === 'pause' ? onPause() : onDelete())}
+          trigger=${(p) => html`<button type="button" ...${p} class="pb-icon-btn sm" aria-label="Task options"><${Icon} name="DotsThree" /></button>`} />`}
       </div>
+      <textarea class="pb-inline pr-desc" rows="1" aria-label="Instructions" placeholder="What should Magnar do each time it runs?" value=${d.instructions}
+        onInput=${(e) => set({ instructions: e.target.value })}></textarea>
       <div class="pr-props">
-        ${!isNew && html`<${MenuButton} items=${STATUS_OPTS} selected=${[d.status]} width=${160} onSelect=${(v) => v !== d.status && onPause()}
-          trigger=${(p) => html`<button type="button" ...${p} class="pr-prop" aria-label="Status"><${Status} t=${d} running=${running} /></button>`} /><span class="sep">·</span>`}
-        <span class="pr-prop is-static"><${Icon} name="Clock" />${freq(d.schedule)}</span>
-        ${d.project && html`<span class="sep">·</span><span class="pr-prop is-static">${d.project}</span>`}
+        ${!isNew && html`<${Status} t=${d} running=${running} /><span class="sep">·</span>`}
+        <span>${freq(s)}</span>
+        ${!isNew && html`<span class="sep">·</span><span class="num">${running ? 'Running now' : n ? 'Next ' + nextLabel(n) : 'No next run'}</span>`}
       </div>
-      <div style="margin-top:40px">
-        <div class="pr-rules-h"><h2>Plan</h2><span class="c">4 steps</span>
-          ${!isNew && html`<span class="grow"></span><button type="button" class="pb-btn pb-btn-secondary sm" disabled=${running || paused} onClick=${onRun}><${Icon} name="Play" />Run now</button>`}</div>
-        <p class="pr-note">${isNew ? 'Set when it runs, what Magnar does, and where the result goes.' : 'Open a step to change it.'}</p>
-        <ol class="pr-rules tf-plan">
-          <${Step} n=${1} step=${STEPS[0]} d=${d} open=${open.has('when')} toggle=${() => toggle('when')}>
-            <${Schedule} s=${d.schedule} setS=${setS} aiOpen=${aiOpen} /><//>
-          <${Step} n=${2} step=${STEPS[1]} d=${d} open=${open.has('do')} toggle=${() => toggle('do')}>
-            <label class="pr-flabel" for="t-ins">Instructions</label>
-            <textarea id="t-ins" class="pr-filled" rows="3" placeholder="E.g. Revisa los contratos que se subieron esta semana y haz un resumen corto de cada uno."
-              value=${d.instructions} onInput=${(e) => set({ instructions: e.target.value })}></textarea><//>
-          <${Step} n=${3} step=${STEPS[2]} d=${d} open=${open.has('where')} toggle=${() => toggle('where')}>
-            <${Field} label="Conversation" id="t-conv"><${Pick} id="t-conv" value=${d.conversation} options=${CONV} onChange=${(v) => set({ conversation: v })} wide /><//>
-            ${d.conversation === 'existing' && html`<${Field} label="Select a conversation" id="t-cid"><${Pick} id="t-cid" value=${d.conversationId} options=${CONVERSATIONS} onChange=${(v) => set({ conversationId: v })} wide /><//>`}
-            <div class="tk-grid2">
-              <${Field} label="Project" id="t-proj"><${Pick} id="t-proj" value=${d.project} options=${PROJECTS} onChange=${(v) => set({ project: v })} icon="Briefcase" wide /><//>
-              <${Field} label="Agent tier" id="t-tier"><${Pick} id="t-tier" value=${d.tier} options=${TIERS} onChange=${(v) => set({ tier: v })} width=${160} wide /><//>
-            </div><//>
-          <${Step} n=${4} step=${STEPS[3]} d=${d} open=${open.has('notify')} toggle=${() => toggle('notify')}>
-            <div class="tr-checks" style="margin-top:0">
-              <label class="tr-check"><input type="checkbox" checked=${d.push} onChange=${(e) => set({ push: e.target.checked })} />Push</label>
-              <label class="tr-check"><input type="checkbox" checked=${d.email} onChange=${(e) => set({ email: e.target.checked })} />Email</label>
-            </div>
-            <p class="tk-hint">These channels are used only when the agent requests an update, following your instructions.</p><//>
-        </ol>
+    </section>
+    <${Box} n="01" title="Schedule">
+      <${Row} k="Repeat"><${Pick} label="Repeat" value=${s.repeat} options=${REPEAT} onChange=${(v) => setS({ repeat: v })} /><//>
+      ${s.repeat === 'weekly' && html`<${Row} k="Days"><${Days} days=${s.days} onChange=${(v) => setS({ days: v })} /><//>`}
+      ${s.repeat !== 'interval' && html`<${Row} k="Time"><${Pick} label="Time" value=${s.time} options=${TIMES} onChange=${(v) => setS({ time: v })} width=${140} /><//>
+        <${Row} k="Time zone"><${Pick} label="Time zone" value=${s.tz} options=${ZONES} onChange=${(v) => setS({ tz: v })} width=${300} /><//>`}
+    <//>
+    <${Box} n="02" title="Where it runs">
+      <${Row} k="Conversation"><${Pick} label="Conversation" value=${d.conversation} options=${CONV} onChange=${(v) => set({ conversation: v })} /><//>
+      ${d.conversation === 'existing' && html`<${Row} k="Select"><${Pick} label="Select a conversation" value=${d.conversationId} options=${CONVERSATIONS} onChange=${(v) => set({ conversationId: v })} /><//>`}
+      <${Row} k="Project"><${Pick} label="Project" value=${d.project} options=${PROJECTS} onChange=${(v) => set({ project: v })} /><//>
+      <${Row} k="Agent tier"><${Pick} label="Agent tier" value=${d.tier} options=${TIERS} onChange=${(v) => set({ tier: v })} width=${160} /><//>
+    <//>
+    <${Box} n="03" title="Notifications">
+      <div class="tr-checks tf-checks">
+        <label class="tr-check"><input type="checkbox" checked=${d.push} onChange=${(e) => set({ push: e.target.checked })} />Push</label>
+        <label class="tr-check"><input type="checkbox" checked=${d.email} onChange=${(e) => set({ email: e.target.checked })} />Email</label>
       </div>
-      ${!isNew && html`<section class="tf-history" aria-labelledby="h-runs">
-        <div class="pr-rules-h"><h2 id="h-runs">Run history</h2><span class="c">${t.runs.length}</span>${t.unread && html`<span class="tk-unread">Unread result</span>`}</div>
-        ${t.runs.length ? html`<ol>${t.runs.slice(0, 4).map((r) => html`<li><span class="num">${fmtRunAt(r.at)}</span>
-            <span class=${cx('tk-st', r.status === 'Failed' && 'is-fail', r.status === 'Running' && 'is-run')}><i></i>${r.status}</span></li>`)}</ol>`
-          : html`<p class="pr-note" style="margin-top:8px">No runs yet</p>`}
-      </section>`}
-    </div>
-  </div></div>
+    <//>
+    ${!isNew && html`<${Box} title="Run history" extra=${t.unread && html`<span class="tk-unread">Unread result</span>`}>
+      ${t.runs.length ? html`<ol class="tf-runs-list">${t.runs.slice(0, 4).map((r) => html`<li><span class="num">${fmtRunAt(r.at)}</span>
+          <span class=${cx('tk-st', r.status === 'Failed' && 'is-fail', r.status === 'Running' && 'is-run')}><i></i>${r.status}</span></li>`)}</ol>`
+        : html`<p class="tf-muted">No runs yet</p>`}
+    <//>`}
+  </div></div></div>
   ${isNew && html`<div class="pr-foot">
     <button type="button" class="pb-btn pb-btn-secondary" onClick=${close}>Cancel</button>
     ${ok ? html`<button type="button" class="pb-btn pb-btn-primary" onClick=${onCreate}>Create task</button>`
       : html`<${Tip} label="Add a name and instructions" side="top"><button type="button" class="pb-btn pb-btn-primary" disabled>Create task</button><//>`}
   </div>`}`;
 }
-
 // ------------------------------------------------------------ separador que se arrastra (igual que en Playbooks)
 // El panel ocupa la mitad de la pantalla; la lista, la otra mitad. Arrastrar cambia la proporción.
 const COL_MIN = 280;
@@ -368,17 +244,6 @@ function Resizer({ hostRef, onHide, onCommit }) {
 
 // ------------------------------------------------------------ app
 let seq = 0;
-const emptyChat = () => ({ msgs: [], step: 'idle', draft: null, typing: false });
-function demoChat(kind) {
-  const d = { ...blank(), name: 'Resumen de contratos nuevos', instructions: 'Resume los contratos que se subieron la semana pasada.', schedule: sch({ repeat: 'weekly', days: [1], time: '09:00' }) };
-  const msgs = [{ from: 'me', text: 'Resume los contratos que se subieron la semana pasada' }];
-  if (kind === 'schedule') return { ...emptyChat(), step: 'schedule', draft: d, msgs: [...msgs, { from: 'ai', text: 'Got it. When should it run?', chips: WHEN_CHIPS }] };
-  msgs.push({ from: 'ai', text: 'Got it. When should it run?' }, { from: 'me', text: 'Every Monday at 9:00 AM' });
-  if (kind === 'notify') return { ...emptyChat(), step: 'notify', draft: d, msgs: [...msgs, { from: 'ai', text: 'Okay: every Mon · 9:00 AM. How should Magnar let you know when there’s something new?', chips: NOTIFY_CHIPS }] };
-  msgs.push({ from: 'ai', text: 'Okay: every Mon · 9:00 AM. How should Magnar let you know when there’s something new?' }, { from: 'me', text: 'Push' });
-  return { ...emptyChat(), step: 'draft', draft: d, msgs: [...msgs, { from: 'ai', text: 'Here’s the plan. Create it as is, or review the details first.', draft: d }] };
-}
-
 function App() {
   const { path, params, nav } = useHashState();
   const [tasks, setTasks] = useState(() => (params.empty ? [] : SEED));
@@ -388,7 +253,6 @@ function App() {
   const [status, setStatus] = useState(params.status || 'all');
   const [running, setRunning] = useState(params.running ? path : null);
   const [fresh, setFresh] = useState(null);
-  const [chat, setChat] = useState(() => (params.chat ? demoChat(params.chat) : emptyChat()));
   const [del, setDel] = useState(null);
   const [toast, setToast] = useState(null);
   const host = useRef();
@@ -452,50 +316,17 @@ function App() {
     addEventListener('keydown', key); return () => removeEventListener('keydown', key);
   }, [mode, path, drafts]);
 
-  // ---------------- chat: Magnar pregunta solo lo que falta (cuándo y cómo avisar) y arma el plan
-  const say = (next, delay = 650) => { setChat((c) => ({ ...c, typing: true })); setTimeout(() => setChat((c) => ({ ...next(c), typing: false })), delay); };
-  const askNotify = (c, draft) => ({ ...c, step: 'notify', draft, msgs: [...c.msgs, { from: 'ai', text: `Okay: ${freq(draft.schedule).replace(/^./, (x) => x.toLowerCase())}. How should Magnar let you know when there’s something new?`, chips: NOTIFY_CHIPS }] });
-  const showPlan = (c, draft) => ({ ...c, step: 'draft', draft, msgs: [...c.msgs, { from: 'ai', text: 'Here’s the plan. Create it as is, or review the details first.', draft }] });
-  const send = (text) => {
-    setChat((c) => ({ ...c, msgs: [...c.msgs, { from: 'me', text }] }));
-    if (chat.step === 'idle' || chat.step === 'done') {
-      const s = readSchedule(text);
-      const t = readTask(text); if (PRESET_NAMES[text]) t.name = PRESET_NAMES[text];
-      const draft = { ...blank(), ...t, schedule: s || blank().schedule };
-      say((c) => (s ? askNotify(c, draft) : { ...c, step: 'schedule', draft, msgs: [...c.msgs, { from: 'ai', text: 'Got it. When should it run?', chips: WHEN_CHIPS }] }));
-    } else if (chat.step === 'schedule') {
-      const s = readSchedule(text);
-      say((c) => (s ? askNotify(c, { ...c.draft, schedule: s }) : { ...c, msgs: [...c.msgs, { from: 'ai', text: 'I didn’t catch the time. Pick one:', chips: WHEN_CHIPS }] }));
-    } else if (chat.step === 'notify') {
-      const tx = text.toLowerCase();
-      say((c) => showPlan(c, { ...c.draft, push: /push|both|ambos/.test(tx), email: /mail|correo|both|ambos/.test(tx) }));
-    }
-  };
-  const pick = (chip) => {
-    setChat((c) => ({ ...c, msgs: [...c.msgs, { from: 'me', text: chip.label }] }));
-    if (chat.step === 'schedule') say((c) => askNotify(c, { ...c.draft, schedule: sch(chip.s) }));
-    else if (chat.step === 'notify') say((c) => showPlan(c, { ...c.draft, push: chip.push, email: chip.email }), 550);
-  };
-  const markDone = (id) => setChat((c) => ({ ...c, step: 'done', msgs: c.msgs.map((m) => (m.draft && !m.done ? { ...m, done: id } : m)) }));
-  const createDraft = () => {
-    const id = addTask(chat.draft); const n = nextRuns(chat.draft.schedule, 1)[0];
-    markDone(id);
-    say((c) => ({ ...c, msgs: [...c.msgs, { from: 'ai', text: `Done. It’s in your list${n ? ', first run ' + nextLabel(n).replace(' · ', ' at ') : ''}.` }] }), 500);
-    setToast('Task created');
-  };
-  const reviewDraft = () => { setNewDraft(chat.draft); go('new'); };
-
   let pane = null;
   const back = html`<button type="button" class="pr-back" style="margin-bottom:16px" onClick=${() => go('')}><${Icon} name="ArrowLeft" />Scheduled tasks</button>`;
-  if (isNew && newDraft) pane = html`<${TaskPane} key="new" isNew draft=${newDraft} update=${(fn) => setNewDraft((d) => fn(d))} aiOpen=${!!params.ai} back=${back} close=${() => { setNewDraft(null); go(''); }}
-    onCreate=${() => { const id = addTask(newDraft); setNewDraft(null); if (chat.step === 'draft') markDone(id); setToast('Task created'); go(id); }} />`;
+  if (isNew && newDraft) pane = html`<${TaskPane} key="new" isNew draft=${newDraft} update=${(fn) => setNewDraft((d) => fn(d))} back=${back} close=${() => { setNewDraft(null); go(''); }}
+    onCreate=${() => { const id = addTask(newDraft); setNewDraft(null); setToast('Task created'); go(id); }} />`;
   else if (current) pane = html`<${TaskPane} key=${current.id} t=${current} draft=${drafts[current.id] || current} update=${update(current.id)} running=${running === current.id} back=${back}
-    initStep=${params.step} close=${() => go('')} onRun=${() => runNow(current)} onPause=${() => togglePause(drafts[current.id] || current)} onDelete=${() => setDel(current)} />`;
+    close=${() => go('')} onRun=${() => runNow(current)} onPause=${() => togglePause(drafts[current.id] || current)} onDelete=${() => setDel(current)} />`;
   const count = current ? changes(drafts[current.id], current) : 0;
 
   const newBtn = (sm) => html`<button type="button" class=${cx('pb-btn pb-btn-primary', sm && 'sm')} onClick=${() => { setNewDraft(null); go('new'); }}><${Icon} name="Plus" />New task</button>`;
   const body = tasks.length === 0
-    ? html`<${EmptyState} kind="task" title="No scheduled tasks yet" text="Describe one above, or create it step by step." action=${newBtn(false)} />`
+    ? html`<${EmptyState} kind="task" title="No scheduled tasks yet" text="Tasks run instructions on a schedule and report back in a conversation." action=${newBtn(false)} />`
     : html`
       <div class="tf-sticky"><${StatusTabs} value=${status} onChange=${setStatus} counts=${counts}
         trailing=${!compact && html`<div class="tf-tools"><${SearchBox} value=${q} onInput=${setQ} placeholder="Search tasks" width="240px" />${newBtn(false)}</div>`} /></div>
@@ -514,7 +345,7 @@ function App() {
           <div class="pr-khead"><h1 class="pb-section">Scheduled tasks</h1>
             ${!compact && html`<${Tip} label="Tasks run on their own and report back in a conversation"><button type="button" class="pb-icon-btn sm" aria-label="About scheduled tasks"><${Icon} name="Info" /></button><//>`}
             <span class="grow"></span>${compact && tasks.length > 0 && newBtn(true)}</div>
-          <${Ask} chat=${chat} send=${send} pick=${pick} createDraft=${createDraft} reviewDraft=${reviewDraft} reset=${() => setChat(emptyChat())} openTask=${(id) => go(id)} compact=${compact} />
+          <${Ask} compact=${compact} />
           ${body}
         </div></div></div>
       </section>

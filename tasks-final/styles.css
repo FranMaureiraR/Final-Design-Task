@@ -46,39 +46,6 @@
 .tf-idea .t { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tf-idea .d { font-size: 12px; line-height: 16px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Conversación: la persona en burbuja a la derecha, Magnar en texto (como el chat de Magnar) */
-.tf-thread { display: flex; flex-direction: column; gap: 14px; max-height: 360px; margin-top: 24px; padding: 12px 2px 4px; overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20px); mask-image: linear-gradient(to bottom, transparent, #000 20px); }
-.tf-msg { animation: pr-enter .28s var(--ease) both; }
-.tf-msg p { font-size: 14px; line-height: 22px; color: var(--ink); text-wrap: pretty; }
-.tf-msg.is-me { align-self: flex-end; max-width: 80%; padding: 8px 14px; border-radius: 16px; background: var(--canvas-2); }
-.tf-msg.is-ai { align-self: stretch; }
-.tf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.tf-chip { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 99px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
-  font-size: 13px; line-height: 18px; color: var(--ink-2); white-space: nowrap; transition: box-shadow .12s, color .12s; animation: pr-enter .28s var(--ease) both; }
-.tf-chip:nth-child(2) { animation-delay: .03s; } .tf-chip:nth-child(3) { animation-delay: .06s; } .tf-chip:nth-child(4) { animation-delay: .09s; }
-.tf-chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink); }
-.tf-typing { display: inline-flex; align-items: center; gap: 4px; height: 22px; }
-.tf-typing i { width: 5px; height: 5px; border-radius: 99px; background: var(--ink-3); animation: tf-blink 1s ease-in-out infinite; }
-.tf-typing i:nth-child(2) { animation-delay: .15s; } .tf-typing i:nth-child(3) { animation-delay: .3s; }
-@keyframes tf-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
-
-/* El plan dentro del chat: los mismos 4 pasos, en versión corta */
-.tf-plan-card { margin-top: 10px; padding: 16px 16px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); animation: pr-enter .3s var(--ease) both; }
-.tf-plan-card .h { display: flex; align-items: center; gap: 10px; }
-.tf-plan-card .h b { flex: 1; min-width: 0; font-family: var(--serif); font-size: 18px; line-height: 24px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tf-plan-card .ok { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 16px; color: var(--ink-2); }
-.tf-plan-card .ok svg { width: 14px; height: 14px; color: var(--success); }
-.tf-mini { position: relative; margin-top: 12px; }
-.tf-mini::before { content: ''; position: absolute; left: 11px; top: 12px; bottom: 12px; width: 1px; background: var(--line); }
-.tf-mini li { position: relative; display: grid; grid-template-columns: 24px 92px minmax(0, 1fr); align-items: center; column-gap: 12px; min-height: 32px; font-size: 13px; line-height: 18px; }
-.tf-mini .pr-num { position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--surface); }
-.tf-mini .k { color: var(--ink-3); }
-.tf-mini .v { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tf-plan-card .f { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-.tf-plan-card .f .pb-btn svg { margin-left: 2px; }
-.tf-plan-card.is-done { background: var(--canvas); }
-
 /* ---------------------------------------------------------------- pestañas con contador, buscador y New task (fijas al hacer scroll) */
 .tf-sticky { position: sticky; top: -1px; z-index: 4; margin-top: 48px; padding: 0 4px; background: var(--surface); }
 .pr-stage:not([data-mode=full]) .tf-sticky { margin-top: 12px; padding: 0; }
@@ -109,31 +76,51 @@
 /* En la columna, "Unread result" pasa a ser un punto para no cortar el nombre */
 .pr-stage:not([data-mode=full]) .tf-li .tk-unread { width: 6px; height: 6px; min-width: 6px; padding: 0; border-radius: 99px; font-size: 0; background: var(--tint); box-shadow: none; }
 
-/* ---------------------------------------------------------------- panel: misma jerarquía que el playbook */
-.tf-detail .pr-head { align-items: flex-start; }
-.tf-detail .pr-props .pr-prop .tk-st { color: inherit; }
-.tf-detail .pr-props button.pr-prop:hover .tk-st { color: var(--ink); }
-.pr-rules-h .tk-unread { align-self: center; margin-left: 4px; }
+/* ---------------------------------------------------------------- panel: cuadros separados, solo titulares, controles sobrios */
+.tf-pane { display: grid; grid-template-columns: minmax(0, 640px); justify-content: center; padding: 40px 32px 120px; }
+.tf-pane > div { display: flex; flex-direction: column; gap: 10px; }
+.tf-box { padding: 18px 20px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.tf-box-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--ink); }
+.tf-box-h .n { font-size: 11px; font-weight: 400; color: var(--ink-3); letter-spacing: .02em; }
+.tf-box-h .grow { flex: 1; }
+.tf-box-h .tk-unread { align-self: center; }
+.tf-head { padding: 18px 20px 20px; }
+.tf-head .pr-crumb { margin-bottom: 10px; }
+.tf-title-row { display: flex; align-items: flex-start; gap: 12px; }
+.tf-title-row .pr-title { flex: 1; }
+.tf-head .pr-desc { margin-top: 6px; font-size: 15px; line-height: 24px; }
+.tf-head .pr-props { margin-top: 12px; gap: 8px; }
+.tf-head .pr-props .tk-st { color: var(--ink-2); }
 
-/* El plan: 4 cards numeradas como reglas, unidas por una línea (estilo Front) */
-.tf-plan { position: relative; gap: 12px; }
-.tf-step { position: relative; }
-.tf-step + .tf-step::before { content: ''; position: absolute; left: 26px; top: -13px; height: 12px; width: 1px; background: var(--line-strong); }
-.tf-step .pr-rule-head .title { font-size: 14px; }
-.tf-step .pr-rule-head .prev.is-empty { color: var(--ink-3); }
-.tf-step .pr-rule-pad { padding-top: 18px; }
-.tf-step .pr-filled:last-child { margin-bottom: 0; }
-.tf-step .pr-rule-pad > .tk-field:first-child { margin-top: 0; }
-.tf-step .tk-sched { margin-top: 0; }
-.tf-runs { margin-top: 14px; font-size: 13px; line-height: 20px; color: var(--ink-2); }
-.tf-runs span { margin-right: 10px; color: var(--ink-3); }
+/* Filas etiqueta / valor */
+.tf-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; min-height: 40px; border-top: 1px solid var(--line); }
+.tf-box-h + .tf-row { border-top: 0; }
+.tf-row .k { font-size: 13px; line-height: 18px; color: var(--ink-3); }
+.tf-row .v { display: flex; align-items: center; min-width: 0; }
 
-/* Historial: lista simple */
-.tf-history { margin-top: 40px; }
-.tf-history ol { margin-top: 12px; }
-.tf-history li { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 40px; border-top: 1px solid var(--line); font-size: 13px; line-height: 18px; color: var(--ink-2); }
-.tf-history li:last-child { border-bottom: 1px solid var(--line); }
+/* Select sobrio: texto, borde fino solo al pasar el mouse */
+.tf-sel { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 30px; padding: 0 8px; margin-left: -8px; border-radius: 6px; font-size: 13px; color: var(--ink);
+  white-space: nowrap; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .12s, background-color .12s; }
+.tf-sel:hover, .tf-sel[aria-expanded=true] { box-shadow: inset 0 0 0 1px var(--line); background: var(--canvas); }
+.tf-sel > span:not(.off) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tf-sel svg { width: 14px; height: 14px; color: var(--ink-3); flex-shrink: 0; }
+.tf-sel .chev { width: 12px; height: 12px; opacity: .45; transition: opacity .12s, transform .18s var(--ease); }
+.tf-sel:hover .chev, .tf-sel[aria-expanded=true] .chev { opacity: 1; }
+.tf-sel[aria-expanded=true] .chev { transform: rotate(180deg); }
+.tf-sel .off { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* Días: la fila de un calendario */
+.tf-week { display: flex; gap: 4px; }
+.tf-day { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 99px; font-size: 12px; font-weight: 500; color: var(--ink-2);
+  transition: background-color .14s, color .14s; }
+.tf-day:hover { background: var(--canvas-2); color: var(--ink); }
+.tf-day[aria-pressed=true] { background: var(--ink); color: var(--surface); }
+
+.tf-checks { gap: 20px; margin-top: 2px; padding: 8px 0 2px; }
+.tf-checks .tr-check { font-size: 13px; }
+.tf-runs-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 38px; border-top: 1px solid var(--line); font-size: 13px; line-height: 18px; color: var(--ink-2); }
+.tf-runs-list li:first-child { border-top: 0; }
+.tf-muted { font-size: 13px; line-height: 20px; color: var(--ink-3); }
 .tk-st.is-fail i { background: var(--destructive); }
-
-/* Crear: el footer va pegado abajo del panel */
 .pr-pane-inner > .pr-foot { position: static; }
+@container pane (width < 560px) { .tf-pane { padding: 20px 16px 96px; } .tf-row { grid-template-columns: 96px minmax(0, 1fr); } }
