@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Playbooks (original) - Magnar</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
-  <link rel="stylesheet" href="/styles/magnar.css" />
-  <link rel="stylesheet" href="/styles/magnar-extra.css" />
+  <link rel="stylesheet" href="../styles/magnar.css" />
+  <link rel="stylesheet" href="../styles/magnar-extra.css" />
   <style>
     /* El flujo original trae su propio marco (sidebar + pestañas). Dentro del panel derecho se ocultan. */
     .orig-host { display: flex; flex: 1; min-height: 0; flex-direction: column; }
@@ -25,8 +25,8 @@
   -->
   <div id="app"></div>
   <script type="module">
-    import { html, render } from '/vendor/preact-htm.js';
-    import { Frame } from '/shared/split-shell.js';
+    import { html, render } from '../vendor/preact-htm.js';
+    import { Frame } from '../shared/split-shell.js';
     const q = new URLSearchParams(location.search);
     const split = q.get('split');
     if (split) {
@@ -34,7 +34,7 @@
     } else {
       document.getElementById('app').id = 'root';
     }
-    await import('/playbooks/app.js');
+    await import('../playbooks/app.js');
     const click = q.get('click');
     if (click) setTimeout(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === click)?.click(), 300);
   </script>

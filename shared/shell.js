@@ -12,11 +12,11 @@ const NAV_TOP = [
 const APPS = [
   { key: 'drive', label: 'Drive', icon: 'HardDrives' },
   { key: 'artifacts', label: 'Artifacts', icon: 'Browser' },
-  { key: 'tasks', label: 'Scheduled tasks', icon: 'Clock', href: '/tasks/' },
+  { key: 'tasks', label: 'Scheduled tasks', icon: 'Clock', href: '../tasks/' },
   { key: 'compare', label: 'Compare', icon: 'ArrowsLeftRight' },
   { key: 'sign', label: 'Sign', icon: 'FileText' },
   { key: 'addons', label: 'Add-ons', icon: 'PuzzlePiece' },
-  { key: 'knowledge', label: 'Knowledge', icon: 'Books', href: '/playbooks/' },
+  { key: 'knowledge', label: 'Knowledge', icon: 'Books', href: '../playbooks/' },
 ];
 
 function NavItem({ item, active }) {
@@ -71,7 +71,7 @@ export function Sidebar({ activeApp, links }) {
                 <span data-slot="avatar" class="group/avatar relative flex shrink-0 select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken dark:after:mix-blend-lighten size-6 rounded-full">
                   <span class="flex size-full items-center justify-center rounded-full bg-muted text-[10px] font-medium text-foreground">F</span>
                 </span>
-                <span class="absolute -right-1 -bottom-0.5 h-2 w-3 overflow-hidden rounded-[2px] ring-1 ring-sidebar"><img src="/flags/CL.svg" alt="" class="block size-full!" /></span>
+                <span class="absolute -right-1 -bottom-0.5 h-2 w-3 overflow-hidden rounded-[2px] ring-1 ring-sidebar"><img src="../flags/CL.svg" alt="" class="block size-full!" /></span>
               </span>
             </button></div>
           </div>

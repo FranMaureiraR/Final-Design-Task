@@ -127,7 +127,7 @@ function AddMenu({ onPickPlaybook, onCreateWithAI }) {
         ${list.map((p) => html`<div data-slot="command-item" class=${H.pbItem} data-selected="true" cmdk-item="" onClick=${() => onPickPlaybook(p)}>
           <div class="min-w-0 flex-1">
             <div class="flex min-w-0 items-center gap-2"><span class="min-w-0 truncate font-medium">${p.name}</span>
-              <span class=${H.pbCountry}><img src=${'/flags/' + p.country + '.svg'} alt="" class="size-3.5 shrink-0 object-contain" /><span class="truncate">${p.countryName}</span></span></div>
+              <span class=${H.pbCountry}><img src=${'../flags/' + p.country + '.svg'} alt="" class="size-3.5 shrink-0 object-contain" /><span class="truncate">${p.countryName}</span></span></div>
             <p class="mt-0.5 line-clamp-2 text-xs text-muted-foreground">${p.description}</p>
           </div>
         </div>`)}

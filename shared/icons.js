@@ -92,5 +92,5 @@ export function Icon({ name, class: cls = '' }) {
 
 export function Flag({ code, class: cls = 'size-3.5' }) {
   if (!code) return html`<${Icon} name="Globe" class=${cls + ' text-muted-foreground'} />`;
-  return html`<img src=${'/flags/' + code + '.svg'} alt="" class=${cls + ' object-contain'} />`;
+  return html`<img src=${'../flags/' + code + '.svg'} alt="" class=${cls + ' object-contain'} />`;
 }
