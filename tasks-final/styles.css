@@ -1,128 +1,139 @@
 /* Scheduled tasks · versión final.
-   Reutiliza la escena de Playbooks (pr-stage full / split / wide, tabla de la versión B, panel, barra de cambios)
-   y los campos de Tasks (tk-select, tk-sched, tk-runs, tk-hist). Acá solo va lo propio de Tasks:
-   el chat con Magnar, las pestañas con contador, las columnas de la tabla y el panel con la columna de ejecuciones. */
+   Reutiliza la escena de Playbooks (pr-stage full / split / wide, tabla de la versión B, panel, cards de regla,
+   barra de cambios) y los campos de Tasks (tk-select, tk-sched). Acá solo va lo propio de Tasks:
+   la pregunta a Magnar al centro, las ideas, las pestañas con contador, las columnas y el plan en 4 pasos. */
 
-.pr-khead .grow { flex: 1; }
 .pr-khead { justify-content: flex-start; gap: 6px; }
+.pr-khead .grow { flex: 1; }
 
-/* ---------------------------------------------------------------- chat con Magnar */
-/* Se pliega (alto a 0) cuando la lista pasa a columna, para que la tabla quede a la vista. */
-.tf-ask { display: grid; grid-template-rows: 1fr; margin-top: 20px; padding: 0 4px;
-  transition: grid-template-rows .38s var(--ease), opacity .24s ease, margin .38s var(--ease); }
-.tf-ask.is-hidden { grid-template-rows: 0fr; opacity: 0; margin-top: 0; pointer-events: none; }
+/* ---------------------------------------------------------------- home: pregunta a Magnar, al centro (como el home de Magnar) */
+/* Se pliega (alto a 0) cuando la lista pasa a columna. */
+.tf-ask { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .38s var(--ease), opacity .24s ease; }
+.tf-ask.is-hidden { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
 .tf-ask-in { min-height: 0; overflow: hidden; }
-.tf-ask-pad { padding: 20px 20px 16px; border-radius: 14px; background: var(--canvas); box-shadow: inset 0 0 0 1px var(--line); }
-.tf-ask-top { display: flex; align-items: flex-start; gap: 12px; }
-.tf-mark { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 99px; background: var(--ink); color: var(--surface); }
-.tf-mark svg { width: 14px; height: 14px; }
-.tf-greet { flex: 1; min-width: 0; }
-.tf-greet h2 { font-family: var(--serif); font-size: 22px; line-height: 28px; font-weight: 400; letter-spacing: -0.01em; color: var(--ink); }
-.tf-greet p { margin-top: 2px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
+.tf-ask-pad { width: 100%; max-width: 680px; margin: 0 auto; padding: 40px 0 8px; }
+.tf-hello { font-family: var(--serif); font-size: 30px; line-height: 36px; font-weight: 400; letter-spacing: -0.015em; text-align: center; color: var(--ink); text-wrap: balance; }
+.tf-sub { margin-top: 6px; font-size: 14px; line-height: 20px; text-align: center; color: var(--ink-2); }
 
-/* Conversación: mensajes como en el chat de Magnar (la persona en burbuja a la derecha, Magnar en texto) */
-.tf-thread { display: flex; flex-direction: column; gap: 12px; max-height: 320px; margin-top: 16px; padding: 4px 0 4px 40px; overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px); mask-image: linear-gradient(to bottom, transparent, #000 12px); }
+/* Composer: el de Magnar (caja redondeada, barra abajo con el botón circular) */
+.tf-composer { margin-top: 24px; padding: 12px 12px 10px 16px; border-radius: 18px; background: var(--surface); cursor: text;
+  box-shadow: 0 0 0 1px var(--line-strong), 0 1px 2px oklch(0% 0 0 / .03), 0 8px 24px oklch(0% 0 0 / .04); transition: box-shadow .16s ease; }
+.tf-composer:hover { box-shadow: 0 0 0 1px var(--ink-3), 0 1px 2px oklch(0% 0 0 / .03), 0 8px 24px oklch(0% 0 0 / .04); }
+.tf-composer:focus-within { box-shadow: 0 0 0 1px var(--ink-3), 0 0 0 4px oklch(var(--tint-ink) var(--tint-hue) / .10), 0 8px 24px oklch(0% 0 0 / .04); }
+.tf-composer textarea { display: block; width: 100%; min-height: 44px; padding: 2px 0; border: 0; background: transparent; resize: none; outline: none; cursor: text;
+  font: inherit; font-size: 15px; line-height: 22px; color: var(--ink); field-sizing: content; }
+.pb .tf-composer textarea:focus-visible { outline: none; }
+.tf-composer textarea::placeholder { color: var(--ink-3); }
+.tf-composer.is-filled textarea { animation: tf-type .32s var(--ease); }
+@keyframes tf-type { from { opacity: 0; transform: translateY(2px); } }
+.tf-composer-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.tf-send { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 99px; background: var(--primary); color: var(--primary-foreground); transition: background-color .16s, transform .16s var(--ease); }
+.tf-send svg { width: 16px; height: 16px; }
+.tf-send:not(:disabled):hover { transform: translateY(-1px); }
+.tf-send:disabled { background: oklch(90% 0 0); cursor: default; }
+.tf-reset { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; margin-left: -8px; border-radius: 6px; font-size: 13px; color: var(--ink-3); transition: background-color .12s, color .12s; }
+.tf-reset:hover { background: var(--canvas-2); color: var(--ink); }
+.tf-reset svg { width: 14px; height: 14px; }
+
+/* Ideas a partir de tus tasks recientes: 3 cards chicas, como las de Playbooks A */
+.tf-ideas { margin-top: 28px; }
+.tf-ideas h3 { margin: 0 0 10px 2px; }
+.tf-idea-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tf-idea { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; align-items: center; padding: 12px 14px; border-radius: 10px; text-align: left;
+  background: var(--surface); border: 1px solid oklch(93.5% 0 0); transition: border-color .16s ease, background-color .16s ease; animation: pr-enter .32s var(--ease) both; }
+.tf-idea:hover { border-color: var(--line-strong); background: var(--canvas); }
+.tf-idea .pb-vis { grid-row: 1 / 3; align-self: start; margin-top: 1px; }
+.tf-idea .t { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-idea .d { font-size: 12px; line-height: 16px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Conversación: la persona en burbuja a la derecha, Magnar en texto (como el chat de Magnar) */
+.tf-thread { display: flex; flex-direction: column; gap: 14px; max-height: 360px; margin-top: 24px; padding: 12px 2px 4px; overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20px); mask-image: linear-gradient(to bottom, transparent, #000 20px); }
 .tf-msg { animation: pr-enter .28s var(--ease) both; }
 .tf-msg p { font-size: 14px; line-height: 22px; color: var(--ink); text-wrap: pretty; }
-.tf-msg.is-me { align-self: flex-end; max-width: 78%; padding: 7px 14px; border-radius: 16px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-.tf-msg.is-ai { align-self: stretch; max-width: 560px; }
+.tf-msg.is-me { align-self: flex-end; max-width: 80%; padding: 8px 14px; border-radius: 16px; background: var(--canvas-2); }
+.tf-msg.is-ai { align-self: stretch; }
 .tf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.tf-chips.is-suggest { margin-top: 12px; padding-left: 0; }
 .tf-chip { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 99px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
-  font-size: 13px; line-height: 18px; color: var(--ink-2); white-space: nowrap; transition: box-shadow .12s, color .12s, background-color .12s; animation: pr-enter .28s var(--ease) both; }
+  font-size: 13px; line-height: 18px; color: var(--ink-2); white-space: nowrap; transition: box-shadow .12s, color .12s; animation: pr-enter .28s var(--ease) both; }
 .tf-chip:nth-child(2) { animation-delay: .03s; } .tf-chip:nth-child(3) { animation-delay: .06s; } .tf-chip:nth-child(4) { animation-delay: .09s; }
 .tf-chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink); }
 .tf-typing { display: inline-flex; align-items: center; gap: 4px; height: 22px; }
-.tf-typing i, .tf-dots i { width: 5px; height: 5px; border-radius: 99px; background: var(--ink-3); animation: tf-blink 1s ease-in-out infinite; }
-.tf-typing i:nth-child(2), .tf-dots i:nth-child(2) { animation-delay: .15s; }
-.tf-typing i:nth-child(3), .tf-dots i:nth-child(3) { animation-delay: .3s; }
+.tf-typing i { width: 5px; height: 5px; border-radius: 99px; background: var(--ink-3); animation: tf-blink 1s ease-in-out infinite; }
+.tf-typing i:nth-child(2) { animation-delay: .15s; } .tf-typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes tf-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 
-/* Composer (mismo de Magnar: caja redondeada y botón circular para enviar) */
-.tf-composer { display: flex; align-items: flex-end; gap: 8px; margin-top: 16px; padding: 6px 6px 6px 14px; border-radius: 16px; background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line-strong); transition: box-shadow .14s; }
-.tf-composer:focus-within { box-shadow: inset 0 0 0 1px var(--ink-3), 0 0 0 3px oklch(var(--tint-ink) var(--tint-hue) / .12); }
-.tf-composer textarea { flex: 1; min-width: 0; min-height: 32px; max-height: 120px; padding: 6px 0; border: 0; background: transparent; resize: none; outline: none;
-  font: inherit; font-size: 14px; line-height: 20px; color: var(--ink); field-sizing: content; }
-.pb .tf-composer textarea:focus-visible { outline: none; }
-.tf-composer textarea::placeholder { color: var(--ink-3); }
-.tf-send { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 99px; background: var(--primary); color: var(--primary-foreground); transition: background-color .14s, opacity .14s; }
-.tf-send svg { width: 16px; height: 16px; }
-.tf-send:disabled { background: oklch(88% 0 0); cursor: default; }
+/* El plan dentro del chat: los mismos 4 pasos, en versión corta */
+.tf-plan-card { margin-top: 10px; padding: 16px 16px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); animation: pr-enter .3s var(--ease) both; }
+.tf-plan-card .h { display: flex; align-items: center; gap: 10px; }
+.tf-plan-card .h b { flex: 1; min-width: 0; font-family: var(--serif); font-size: 18px; line-height: 24px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-plan-card .ok { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 16px; color: var(--ink-2); }
+.tf-plan-card .ok svg { width: 14px; height: 14px; color: var(--success); }
+.tf-mini { position: relative; margin-top: 12px; }
+.tf-mini::before { content: ''; position: absolute; left: 11px; top: 12px; bottom: 12px; width: 1px; background: var(--line); }
+.tf-mini li { position: relative; display: grid; grid-template-columns: 24px 92px minmax(0, 1fr); align-items: center; column-gap: 12px; min-height: 32px; font-size: 13px; line-height: 18px; }
+.tf-mini .pr-num { position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--surface); }
+.tf-mini .k { color: var(--ink-3); }
+.tf-mini .v { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-plan-card .f { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.tf-plan-card .f .pb-btn svg { margin-left: 2px; }
+.tf-plan-card.is-done { background: var(--canvas); }
 
-/* Borrador dentro del chat */
-.tf-draft { margin-top: 10px; padding: 14px 16px; border-radius: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), 0 1px 2px oklch(0% 0 0 / .03); animation: pr-enter .3s var(--ease) both; }
-.tf-draft .h { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.tf-draft .h b { flex: 1; min-width: 0; font-size: 14px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tf-draft .ok { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 16px; color: var(--ink-2); }
-.tf-draft .ok svg { width: 14px; height: 14px; color: var(--success); }
-.tf-draft .ins { margin-top: 6px; padding-left: 32px; font-size: 13px; line-height: 20px; color: var(--ink-2); }
-.tf-draft dl { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 6px 12px; margin-top: 12px; padding: 12px 0 0 32px; border-top: 1px solid var(--line); font-size: 13px; line-height: 18px; }
-.tf-draft dt { color: var(--ink-3); }
-.tf-draft dd { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tf-draft .f { display: flex; justify-content: flex-end; gap: 6px; margin-top: 14px; }
-.tf-draft .f .pb-btn svg { margin-left: 2px; }
-.tf-draft.is-done { background: transparent; }
-
-/* ---------------------------------------------------------------- pestañas con contador (fijas al hacer scroll) */
-.tf-sticky { position: sticky; top: -1px; z-index: 4; margin-top: 28px; padding: 0 4px; background: var(--surface); }
+/* ---------------------------------------------------------------- pestañas con contador, buscador y New task (fijas al hacer scroll) */
+.tf-sticky { position: sticky; top: -1px; z-index: 4; margin-top: 48px; padding: 0 4px; background: var(--surface); }
 .pr-stage:not([data-mode=full]) .tf-sticky { margin-top: 12px; padding: 0; }
 .tf-tabs { margin-top: 0; }
-.pr-stage:not([data-mode=full]) .tf-tabs { gap: 14px; }
+.pr-stage:not([data-mode=full]) .tf-tabs { gap: 16px; }
 .tf-tabs .pr-tab { gap: 6px; }
 .tf-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 99px; background: var(--canvas-2);
   font-size: 11px; line-height: 14px; font-weight: 500; color: var(--ink-3); transition: background-color .2s, color .2s; }
 .pr-tab.is-on .tf-count { background: var(--ink); color: var(--surface); }
-.tf-tabs .pb-search { align-self: center; margin-bottom: 4px; }
+.tf-tools { display: flex; align-items: center; gap: 8px; align-self: center; margin-bottom: 6px; }
 .tf-colsearch { margin-top: 12px; }
 
 /* ---------------------------------------------------------------- tabla: Name · Frequency · Next run · Status */
 .tf-table { margin-top: 16px; padding: 0 4px; }
 .pr-stage:not([data-mode=full]) .tf-table { margin-top: 12px; padding: 0; }
 .tf-table :is(.pr-thead, .pr-li) { --cols: 22px minmax(0, 1fr) 212px 172px 104px 40px 24px; }
-.tf-table .pr-thead { padding-top: 0; }
 .tf-li .d .short { display: none; }
 .pr-stage:not([data-mode=full]) .tf-li .d .full { display: none; }
 .pr-stage:not([data-mode=full]) .tf-li .d .short { display: inline; }
 .tf-li .tk-unread { flex-shrink: 0; }
 .tf-li.is-paused .name > span:first-child { color: var(--ink-2); }
-.tf-li .col .tk-st { font-size: 13px; }
 .pb-vis.tf-paused { background: var(--canvas-2); color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
 @container pr (width < 1100px) {
   .pr-stage[data-mode=full] .tf-table :is(.pr-thead, .pr-li) { --cols: 22px minmax(0, 1fr) 180px 150px 0px 40px 24px; }
   .pr-stage[data-mode=full] .tf-table :is(.pr-thead .st, .pr-li .col.st) { opacity: 0; }
+  .tf-idea-row { grid-template-columns: minmax(0, 1fr); }
 }
-
-/* ---------------------------------------------------------------- panel de la task */
-.tf-detail { grid-template-columns: minmax(0, 640px); gap: 48px; }
-.tf-detail .pr-head { align-items: center; }
-.tf-detail .pr-props .tk-st { color: var(--ink-2); }
-.tf-sec { margin-top: 32px; padding-top: 28px; border-top: 1px solid var(--line); }
-.tf-sec-h { font-size: 14px; line-height: 20px; font-weight: 500; }
-.tf-sec .tk-sched { margin-top: 16px; }
-.tf-sec .tk-field:first-child, .tf-sec .tk-grid2 .tk-field { margin-top: 16px; }
-.tf-ins { margin-top: 14px; min-height: 88px; }
-textarea.pr-filled.tf-ins { min-height: 88px; }
-.tf-side section + section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
-.tf-side h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.tf-big { font-size: 32px; line-height: 38px; font-weight: 500; letter-spacing: -0.02em; color: var(--ink); }
-.tf-big small { margin: 0 8px 0 3px; font-size: 13px; font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
-.tf-big.is-muted { font-size: 22px; line-height: 30px; color: var(--ink-3); }
-.tf-big.is-run { display: flex; align-items: center; gap: 10px; font-size: 22px; line-height: 30px; }
-.tf-dots { display: inline-flex; gap: 4px; }
-.tf-when { margin-top: 2px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
-.tf-muted { font-size: 13px; line-height: 20px; color: var(--ink-3); }
-.tf-side .tk-hist li { padding: 8px 0; }
-/* Con ancho, la próxima ejecución y el historial van en una columna fija a la derecha (como el índice del playbook) */
-@container pane (width >= 940px) {
-  .tf-detail { grid-template-columns: minmax(0, 600px) 232px; }
-  .tf-side { position: sticky; top: 48px; align-self: start; margin-top: 64px; }
-}
-@container pane (width < 940px) {
-  .tf-side { padding-top: 28px; border-top: 1px solid var(--line); }
-}
-
-/* En la columna angosta "Unread result" pasa a ser un punto, para no cortar el nombre */
+/* En la columna, "Unread result" pasa a ser un punto para no cortar el nombre */
 .pr-stage:not([data-mode=full]) .tf-li .tk-unread { width: 6px; height: 6px; min-width: 6px; padding: 0; border-radius: 99px; font-size: 0; background: var(--tint); box-shadow: none; }
-.tf-thread { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20px); mask-image: linear-gradient(to bottom, transparent, #000 20px); padding-top: 12px; }
+
+/* ---------------------------------------------------------------- panel: misma jerarquía que el playbook */
+.tf-detail .pr-head { align-items: flex-start; }
+.tf-detail .pr-props .pr-prop .tk-st { color: inherit; }
+.tf-detail .pr-props button.pr-prop:hover .tk-st { color: var(--ink); }
+.pr-rules-h .tk-unread { align-self: center; margin-left: 4px; }
+
+/* El plan: 4 cards numeradas como reglas, unidas por una línea (estilo Front) */
+.tf-plan { position: relative; gap: 12px; }
+.tf-step { position: relative; }
+.tf-step + .tf-step::before { content: ''; position: absolute; left: 26px; top: -13px; height: 12px; width: 1px; background: var(--line-strong); }
+.tf-step .pr-rule-head .title { font-size: 14px; }
+.tf-step .pr-rule-head .prev.is-empty { color: var(--ink-3); }
+.tf-step .pr-rule-pad { padding-top: 18px; }
+.tf-step .pr-filled:last-child { margin-bottom: 0; }
+.tf-step .pr-rule-pad > .tk-field:first-child { margin-top: 0; }
+.tf-step .tk-sched { margin-top: 0; }
+.tf-runs { margin-top: 14px; font-size: 13px; line-height: 20px; color: var(--ink-2); }
+.tf-runs span { margin-right: 10px; color: var(--ink-3); }
+
+/* Historial: lista simple */
+.tf-history { margin-top: 40px; }
+.tf-history ol { margin-top: 12px; }
+.tf-history li { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 40px; border-top: 1px solid var(--line); font-size: 13px; line-height: 18px; color: var(--ink-2); }
+.tf-history li:last-child { border-bottom: 1px solid var(--line); }
+.tk-st.is-fail i { background: var(--destructive); }
+
+/* Crear: el footer va pegado abajo del panel */
+.pr-pane-inner > .pr-foot { position: static; }

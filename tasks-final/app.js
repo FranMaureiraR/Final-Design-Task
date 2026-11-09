@@ -1,14 +1,14 @@
 // Scheduled tasks · versión final.
-// Home: chat con Magnar arriba ("What task do you want to set up?"), pestañas All / Active / Paused
-// y la tabla de Playbooks B (una fila por task). Al abrir o crear una task, la tabla se angosta a columna
-// y la task se abre en el panel, igual que un playbook (separador arrastrable, barra de cambios sin guardar).
-// Solo usa los campos que Magnar ya tiene: Name, Instructions, Conversation, Project, Agent tier,
-// Schedule (con "AI"), Notification channels, Run now / Pause / Delete, Run history y "Unread result".
+// Home: arriba, al centro, la pregunta a Magnar ("What task do you want to set up?") con su composer, como el home de Magnar,
+// e ideas en cards sacadas de tus tasks recientes. Abajo, pestañas All / Active / Paused con el buscador y "New task",
+// y la tabla de Playbooks B. Al abrir o crear una task, la tabla pasa a columna y la task se abre en un panel de media pantalla.
+// La task se lee como un plan de 4 pasos (When · Do · Where it runs · Notify), en cards como las reglas de un playbook.
+// Solo usa los campos que Magnar ya tiene. Para el prototipo, el composer y el cuadro "AI" traen un texto fijo: solo se envía.
 //
 // Estados por URL:
 //   #/                   home              ?empty=1 sin tasks · ?status=paused · ?q=…
-//   #/?chat=schedule     chat preguntando cuándo · ?chat=notify preguntando cómo avisar · ?chat=draft con el borrador listo
-//   #/<id>               task abierta      ?dirty=1 con 2 cambios sin guardar · ?running=1 ejecutándose · ?wide=1 sin la lista
+//   #/?chat=schedule     chat preguntando cuándo · ?chat=notify preguntando cómo avisar · ?chat=draft con el plan listo
+//   #/<id>               task abierta      ?step=when paso abierto · ?dirty=1 con 2 cambios sin guardar · ?running=1 · ?wide=1 sin la lista
 //   #/new                crear             ?demo=1 con datos · ?ai=1 con el cuadro "AI" abierto
 //   ?split=50 (antes del #) vista dividida · ?v=b (antes del #) el menú lleva a Playbooks versión B
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from '../vendor/preact-htm.js';
@@ -54,10 +54,10 @@ const CONV = [{ key: 'new', label: 'New conversation each run' }, { key: 'existi
 const CONVERSATIONS = [{ key: 'c1', label: 'Ley del trabajador' }, { key: 'c2', label: 'Revisión de NDA' }];
 const PROJECTS = [{ key: '', label: 'No project' }, { key: 'Clientes', label: 'Clientes' }];
 const TIERS = [['auto', 'Auto'], ['low', 'Low'], ['mid', 'Mid'], ['high', 'High']].map(([key, label]) => ({ key, label }));
-const FIELDS = ['name', 'instructions', 'conversation', 'conversationId', 'project', 'tier', 'push', 'email'];
+const STATUS_OPTS = [{ key: 'active', label: 'Active', lead: html`<span class="tk-st"><i></i></span>` }, { key: 'paused', label: 'Paused', lead: html`<span class="tk-st is-paused"><i></i></span>` }];
+const FIELDS = ['name', 'instructions', 'conversation', 'conversationId', 'project', 'tier', 'push', 'email', 'status'];
 const blank = () => ({ name: '', instructions: '', conversation: 'new', conversationId: 'c1', project: '', tier: 'auto', schedule: sch({ repeat: 'weekly', days: [1] }), push: true, email: false });
 const lbl = (opts, k) => opts.find((o) => o.key === (k ?? ''))?.label;
-const city = (tz) => tz.split('/').pop().replace(/_/g, ' ');
 // Frecuencia legible: "Every Mon · 9:00 AM", "Weekdays · 10:00 AM", "Every day · 8:00 AM"
 const t12s = (hhmm) => fmtTime(hhmm).replace(/^0/, '');
 function freq(s) {
@@ -71,6 +71,7 @@ function freq(s) {
   return summary(s);
 }
 const notifLabel = (t) => [t.push && 'Push', t.email && 'Email'].filter(Boolean).join(' and ') || 'Only in the conversation';
+const whereLabel = (t) => [t.conversation === 'new' ? 'New conversation each run' : lbl(CONVERSATIONS, t.conversationId), t.project, lbl(TIERS, t.tier) + ' tier'].filter(Boolean).join(' · ');
 const changes = (a, b) => (!a || !b ? 0 : FIELDS.filter((k) => a[k] !== b[k]).length + (JSON.stringify(a.schedule) !== JSON.stringify(b.schedule) ? 1 : 0));
 
 // fechas
@@ -78,7 +79,6 @@ const sod = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const dayDiff = (d) => Math.round((sod(d) - sod(new Date())) / 864e5);
 const t12 = (d) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const nextLabel = (d) => { const n = dayDiff(d); return (n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })) + ' · ' + t12(d); };
-const countdown = (d) => { const ms = d - new Date(), h = Math.floor(ms / 36e5), m = Math.round((ms % 36e5) / 6e4); return h >= 48 ? [[Math.round(h / 24), 'days']] : [[h, 'h'], [m, 'min']]; };
 const fmtRunAt = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + t12(d);
 const nextOf = (t) => (t.status === 'paused' ? null : nextRuns(t.schedule, 1)[0] || null);
 
@@ -103,11 +103,21 @@ function readTask(text) {
   const name = body.length > 42 ? body.slice(0, 40).replace(/\s+\S*$/, '') + '…' : body;
   return { name, instructions: /[.!?]$/.test(body) ? body : body + '.' };
 }
-const SUGGEST = [
-  { label: 'Summarize new contracts every Monday at 9', name: 'Resumen de contratos nuevos', instructions: 'Resume los contratos que se subieron esta semana.' },
-  { label: 'Legal news every weekday at 8 AM', name: 'Noticias legales', instructions: 'Resume las noticias legales más importantes del día.' },
-  { label: 'Contracts expiring soon, every Friday at 5 PM', name: 'Contratos por vencer', instructions: 'Avísame qué contratos vencen en los próximos 30 días.' },
+// Texto fijo que aparece al hacer click en el composer, según lo que Magnar está preguntando.
+const FIXED = {
+  idle: 'Todos los lunes a las 9, resume los contratos que se subieron la semana pasada',
+  schedule: 'Every Monday at 9:00 AM',
+  notify: 'Push',
+  done: 'Cada viernes a las 5, avísame qué NDA siguen sin firmar',
+};
+// Ideas a partir de tus tasks recientes
+const IDEAS = [
+  { title: 'NDA firmados', from: 'NDA pendientes', text: 'Todos los viernes a las 5, resume los NDA que se firmaron en la semana' },
+  { title: 'Vencen este mes', from: 'Contratos por vencer', text: 'El primer día de cada mes, dime qué contratos vencen ese mes' },
+  { title: 'Novedades laborales', from: 'Cambios en la ley laboral', text: 'Cada lunes a las 8, resume los cambios en la ley laboral' },
 ];
+// Nombre corto para los textos fijos (como lo haría Magnar)
+const PRESET_NAMES = { [FIXED.idle]: 'Resumen de contratos nuevos', [FIXED.done]: 'NDA sin firmar', ...Object.fromEntries(IDEAS.map((x) => [x.text, x.title])) };
 const WHEN_CHIPS = [
   { label: 'Every weekday at 9:00 AM', s: { repeat: 'weekly', days: [1, 2, 3, 4, 5], time: '09:00' } },
   { label: 'Every Monday at 9:00 AM', s: { repeat: 'weekly', days: [1], time: '09:00' } },
@@ -119,50 +129,64 @@ const NOTIFY_CHIPS = [
   { label: 'Push and email', push: true, email: true }, { label: 'Only in the conversation', push: false, email: false },
 ];
 
-// ------------------------------------------------------------ chat con Magnar (arriba de la lista)
-function Mark() { return html`<span class="tf-mark" aria-hidden="true"><${Icon} name="Sparkle" /></span>`; }
+// ------------------------------------------------------------ home: pregunta a Magnar, al centro
 function Ask({ chat, send, pick, createDraft, reviewDraft, reset, openTask, compact }) {
   const [text, setText] = useState('');
-  const thread = useRef(); const input = useRef();
+  const thread = useRef();
   const started = chat.msgs.length > 0;
-  useLayoutEffect(() => { const t = thread.current; if (t) t.scrollTo({ top: t.scrollHeight, behavior: started ? 'smooth' : 'auto' }); }, [chat.msgs.length, chat.typing]);
+  const fixed = FIXED[chat.step] || '';
+  useEffect(() => { setText(''); }, [chat.step]);
+  useLayoutEffect(() => { const t = thread.current; if (t) t.scrollTo({ top: t.scrollHeight, behavior: 'smooth' }); }, [chat.msgs.length, chat.typing]);
+  const fill = (v) => { if (!chat.typing && (v || fixed)) setText(v || fixed); };
   const submit = (e) => { e?.preventDefault(); if (!text.trim() || chat.typing) return; send(text.trim()); setText(''); };
   const last = chat.msgs[chat.msgs.length - 1];
+  const canWrite = chat.step !== 'draft';
   return html`<section class=${cx('tf-ask', started && 'is-started', compact && 'is-hidden')} aria-label="Ask Magnar to set up a task" inert=${compact}>
     <div class="tf-ask-in"><div class="tf-ask-pad">
-      <div class="tf-ask-top">
-        <${Mark} />
-        <div class="tf-greet"><h2>What task do you want to set up?</h2>
-          <p>Tell Magnar what to do and when. It asks for anything missing.</p></div>
-        ${started && html`<${Tip} label="Start over"><button type="button" class="pb-icon-btn sm" aria-label="Start over" onClick=${() => { reset(); setText(''); input.current?.focus(); }}><${Icon} name="NotePencil" /></button><//>`}
-      </div>
+      <h2 class="tf-hello">What task do you want to set up?</h2>
+      <p class="tf-sub">Tell Magnar what to do and when. It asks for anything missing.</p>
       ${started && html`<div class="tf-thread" ref=${thread} aria-live="polite">
         ${chat.msgs.map((m, i) => m.from === 'me'
           ? html`<div class="tf-msg is-me" key=${i}><p>${m.text}</p></div>`
           : html`<div class="tf-msg is-ai" key=${i}>
               ${m.text && html`<p>${m.text}</p>`}
-              ${m.draft && html`<${DraftCard} d=${m.draft} done=${m.done} onCreate=${createDraft} onReview=${reviewDraft} onOpen=${() => openTask(m.done)} />`}
+              ${m.draft && html`<${DraftPlan} d=${m.draft} done=${m.done} onCreate=${createDraft} onReview=${reviewDraft} onOpen=${() => openTask(m.done)} />`}
               ${m.chips && m === last && !chat.typing && html`<div class="tf-chips">${m.chips.map((c) => html`<button type="button" class="tf-chip" onClick=${() => pick(c)}>${c.label}</button>`)}</div>`}
             </div>`)}
         ${chat.typing && html`<div class="tf-msg is-ai"><span class="tf-typing" aria-label="Magnar is typing"><i></i><i></i><i></i></span></div>`}
       </div>`}
-      <form class="tf-composer" onSubmit=${submit}>
-        <textarea ref=${input} rows="1" aria-label="Describe a task" value=${text} onInput=${(e) => setText(e.target.value)}
-          placeholder=${started ? 'Reply to Magnar…' : 'E.g. Every Monday at 9, summarize the contracts uploaded last week'}
+      <form class=${cx('tf-composer', text && 'is-filled')} onSubmit=${submit} onClick=${() => canWrite && !text && fill()}>
+        <textarea rows="2" readonly aria-label="Describe a task" value=${text} onFocus=${() => canWrite && !text && fill()}
+          placeholder=${!canWrite ? 'Create the task, or review it first' : started ? 'Reply to Magnar…' : 'Describe a task and when it should run…'}
           onKeyDown=${(e) => { if (e.key === 'Enter' && !e.shiftKey) submit(e); }}></textarea>
-        <button type="submit" class="tf-send" aria-label="Send" disabled=${!text.trim() || chat.typing}><${Icon} name="ArrowUp" /></button>
+        <div class="tf-composer-bar">
+          ${started ? html`<button type="button" class="tf-reset" onClick=${(e) => { e.stopPropagation(); reset(); setText(''); }}><${Icon} name="NotePencil" />Start over</button>` : html`<span></span>`}
+          <button type="submit" class="tf-send" aria-label="Send" disabled=${!text.trim() || chat.typing}><${Icon} name="ArrowUp" /></button>
+        </div>
       </form>
-      ${!started && html`<div class="tf-chips is-suggest">${SUGGEST.map((s) => html`<button type="button" class="tf-chip" onClick=${() => send(s.label, s)}>${s.label}</button>`)}</div>`}
+      ${!started && html`<div class="tf-ideas">
+        <h3 class="pb-eyebrow">From your recent tasks</h3>
+        <div class="tf-idea-row">${IDEAS.map((x, i) => html`<button type="button" class="tf-idea" style=${`animation-delay:${80 + i * 40}ms`} onClick=${() => fill(x.text)}>
+          <span class="pb-vis is-shared"><${Icon} name="Clock" /></span>
+          <span class="t">${x.title}</span><span class="d">Like ${x.from}</span></button>`)}</div>
+      </div>`}
     </div></div>
   </section>`;
 }
-// Borrador que Magnar arma en el chat: lo que va a crear, con los mismos datos que el panel.
-function DraftCard({ d, done, onCreate, onReview, onOpen }) {
-  const n = nextRuns(d.schedule, 1)[0];
-  return html`<div class=${cx('tf-draft', done && 'is-done')}>
-    <div class="h"><span class="pb-vis is-shared"><${Icon} name="Clock" /></span><b>${d.name}</b>${done && html`<span class="ok"><${Icon} name="CheckCircle" />Created</span>`}</div>
-    <p class="ins">${d.instructions}</p>
-    <dl><dt>Schedule</dt><dd>${freq(d.schedule)}</dd><dt>Next run</dt><dd class="num">${n ? nextLabel(n) : '—'}</dd><dt>Notify</dt><dd>${notifLabel(d)}</dd></dl>
+
+// ------------------------------------------------------------ el plan (estilo Front): 4 pasos numerados, unidos por una línea
+const STEPS = [
+  { key: 'when', label: 'When', note: 'How often it runs' },
+  { key: 'do', label: 'Do', note: 'What Magnar does each time' },
+  { key: 'where', label: 'Where it runs', note: 'Conversation, project and agent tier' },
+  { key: 'notify', label: 'Notify', note: 'Only when the agent requests an update' },
+];
+const stepValue = (k, d) => (k === 'when' ? freq(d.schedule) : k === 'do' ? d.instructions || 'Add instructions' : k === 'where' ? whereLabel(d) : notifLabel(d));
+// Versión corta dentro del chat
+function DraftPlan({ d, done, onCreate, onReview, onOpen }) {
+  return html`<div class=${cx('tf-plan-card', done && 'is-done')}>
+    <div class="h"><b>${d.name}</b>${done && html`<span class="ok"><${Icon} name="CheckCircle" />Created</span>`}</div>
+    <ol class="tf-mini">${STEPS.map((s, i) => html`<li><span class="pr-num">${String(i + 1).padStart(2, '0')}</span><span class="k">${s.label}</span><span class="v">${stepValue(s.key, d)}</span></li>`)}</ol>
     ${done ? html`<div class="f"><button type="button" class="pb-btn pb-btn-secondary sm" onClick=${onOpen}>Open task<${Icon} name="ArrowRight" /></button></div>`
       : html`<div class="f"><button type="button" class="pb-btn pb-btn-ghost sm" onClick=${onReview}>Review details</button><button type="button" class="pb-btn pb-btn-primary sm" onClick=${onCreate}>Create task</button></div>`}
   </div>`;
@@ -185,7 +209,7 @@ function TaskRow({ t, selected, running, fresh, dirty, go, menu }) {
     <span class="chev"><${Icon} name="CaretRight" /></span>
   </div>`;
 }
-// Pestañas All / Active / Paused: mismas pestañas de Knowledge (subrayado que se desliza), con contador.
+// Pestañas All / Active / Paused: las de Knowledge (subrayado que se desliza), con contador.
 function StatusTabs({ value, onChange, counts, trailing }) {
   const ref = useRef(); const bar = useRef(); const first = useRef(true);
   useLayoutEffect(() => {
@@ -202,17 +226,18 @@ function StatusTabs({ value, onChange, counts, trailing }) {
   </div>`;
 }
 
-// ------------------------------------------------------------ panel: campos (mismos que Magnar)
+// ------------------------------------------------------------ campos (mismos que Magnar, mismos estilos de input que Playbooks)
 const Field = ({ label, id, children }) => html`<div class="tk-field"><label class="pr-flabel" for=${id}>${label}</label>${children}</div>`;
 function Pick({ id, value, options, onChange, icon, width = 220, wide }) {
   const o = options.find((x) => x.key === value) || options[0];
   return html`<${MenuButton} items=${options} selected=${[value]} width=${width} onSelect=${onChange} cls=${options.length > 8 ? 'tr-scroll' : undefined}
     trigger=${(p) => html`<button id=${id} type="button" ...${p} class=${cx('tk-select', wide && 'is-wide')}>${icon && html`<${Icon} name=${icon} />`}<span>${o.label}</span>${o.count && html`<span class="off">${o.count}</span>`}<${Icon} name="CaretDown" class="chev" /></button>`} />`;
 }
+const AI_TEXT = 'Every Friday at 9 AM';
 function Schedule({ s, setS, aiOpen }) {
   const [ai, setAi] = useState(!!aiOpen);
-  const [aiText, setAiText] = useState(aiOpen ? 'Todos los viernes a las 9' : '');
-  const generate = () => { const r = readSchedule(aiText) || parseNatural(aiText, s); setS(r); setAi(false); setAiText(''); };
+  const [aiText, setAiText] = useState(aiOpen ? AI_TEXT : '');
+  const generate = () => { setS(readSchedule(aiText) || parseNatural(aiText, s)); setAi(false); setAiText(''); };
   const runs = nextRuns(s, 3);
   return html`<div>
     <div class="tk-sched">
@@ -220,7 +245,8 @@ function Schedule({ s, setS, aiOpen }) {
         <span class="tk-ai-wrap"><button type="button" class=${cx('tk-select', ai && 'is-on')} aria-expanded=${ai} onClick=${() => setAi(!ai)}><${Icon} name="Sparkle" /><span>AI</span></button>
         ${ai && html`<div class="pb-menu tk-ai" role="dialog" aria-label="Describe when it should run">
           <label class="pr-flabel" for="t-ai">Describe when it should run</label>
-          <input id="t-ai" class="pr-filled" placeholder="E.g. the last Friday of every month at 6 pm" value=${aiText} onInput=${(e) => setAiText(e.target.value)} onKeyDown=${(e) => e.key === 'Enter' && aiText.trim() && generate()} />
+          <input id="t-ai" class="pr-filled" readonly placeholder="Click to write" value=${aiText} onFocus=${() => !aiText && setAiText(AI_TEXT)} onClick=${() => !aiText && setAiText(AI_TEXT)}
+            onKeyDown=${(e) => e.key === 'Enter' && aiText.trim() && generate()} />
           <div class="tk-ai-foot"><button type="button" class="pb-btn pb-btn-primary sm" disabled=${!aiText.trim()} onClick=${generate}>Generate</button></div>
         </div>`}</span></div>
       ${s.repeat === 'weekly' && html`<span class="k">Days</span><div class="v tk-days">${WEEKDAYS.map((w) => html`<button type="button" class="tk-day-btn" aria-pressed=${s.days.includes(w.v)}
@@ -228,120 +254,116 @@ function Schedule({ s, setS, aiOpen }) {
       ${s.repeat !== 'interval' && html`<span class="k">Time</span><div class="v"><${Pick} value=${s.time} options=${TIMES} onChange=${(v) => setS({ time: v })} icon="Clock" width=${140} />
         <${Pick} value=${s.tz} options=${ZONES} onChange=${(v) => setS({ tz: v })} icon="Globe" width=${300} /></div>`}
     </div>
-    <div class="tk-runs"><p class="s num">${summary(s)}</p>${runs.length > 0 && html`<p class="h">Next runs</p><ul class="num">${runs.map((d) => html`<li>${fmtRunAt(d)}</li>`)}</ul>`}</div>
-  </div>`;
-}
-function History({ runs }) {
-  if (!runs.length) return html`<p class="tf-muted">No runs yet</p>`;
-  const last = runs.slice(0, 12).reverse();
-  return html`<div class="tk-hist">
-    <div class="bars">${last.map((r) => html`<i class=${r.status === 'Failed' ? 'is-fail' : r.status === 'Running' ? 'is-run' : ''} title=${fmtRunAt(r.at) + ' · ' + r.status}></i>`)}</div>
-    <ol>${runs.slice(0, 4).map((r) => html`<li><span class="num">${fmtRunAt(r.at)}</span>
-      <span class=${cx('tk-st', r.status === 'Failed' && 'is-fail', r.status === 'Running' && 'is-run')}><i></i>${r.status}</span></li>`)}</ol>
+    ${runs.length > 0 && html`<p class="tf-runs num"><span>Next runs</span>${runs.map((d) => fmtRunAt(d)).join('  ·  ')}</p>`}
   </div>`;
 }
 
-// ------------------------------------------------------------ panel: task abierta o nueva
-// Misma estructura que el playbook: migas, título en Newsreader editable, meta en una línea y secciones.
-// Los cambios se cuentan al tiro en la barra flotante. A la derecha (si hay ancho): próxima ejecución e historial.
-function TaskPane({ t, isNew, draft, update, running, back, close, onRun, onPause, onDelete, aiOpen, onCreate }) {
+// Un paso del plan: card como la regla de un playbook (número, título y una línea; se abre para editar)
+function Step({ n, step, d, open, toggle, children }) {
+  return html`<li class=${cx('pr-rule tf-step', open && 'is-open')} data-step=${step.key}>
+    <div class="pr-rule-head" role="button" tabindex="0" aria-expanded=${open ? 'true' : 'false'} onClick=${toggle}
+      onKeyDown=${(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(); } }}>
+      <span class="pr-num">${String(n).padStart(2, '0')}</span>
+      <span class="txt"><span class="title">${step.label}</span><span class=${cx('prev', step.key === 'do' && !d.instructions && 'is-empty')}>${open ? step.note : stepValue(step.key, d)}</span></span>
+      <span class="pr-chev"><${Icon} name="CaretDown" /></span>
+    </div>
+    <div class="pr-rule-body" inert=${!open}><div><div class="pr-rule-pad">${children}</div></div></div>
+  </li>`;
+}
+
+// ------------------------------------------------------------ panel: task abierta o nueva (misma jerarquía que el playbook)
+function TaskPane({ t, isNew, draft, update, running, back, close, onRun, onPause, onDelete, aiOpen, onCreate, initStep }) {
   const d = draft;
   const set = (p) => update((x) => ({ ...x, ...p }));
   const setS = (p) => update((x) => ({ ...x, schedule: { ...x.schedule, ...p } }));
-  const n = isNew ? nextRuns(d.schedule, 1)[0] : nextOf({ ...t, schedule: d.schedule });
+  const [open, setOpen] = useState(() => new Set(isNew ? STEPS.map((s) => s.key) : initStep ? [initStep] : []));
+  const toggle = (k) => setOpen((o) => { const x = new Set(o); x.has(k) ? x.delete(k) : x.add(k); return x; });
+  const n = !isNew && nextOf({ ...t, ...d });
   const ok = d.name.trim() && d.instructions.trim();
-  const menu = !isNew && html`<${MenuButton} align="end" width=${190} items=${[
-      { key: 'run', label: 'Run now', lead: html`<${Icon} name="Play" />` },
-      { key: 'pause', label: t.status === 'paused' ? 'Resume' : 'Pause', lead: html`<${Icon} name=${t.status === 'paused' ? 'Play' : 'Pause'} />` }, 'sep',
-      { key: 'delete', label: 'Delete task', danger: true, lead: html`<${Icon} name="Trash" />` }]}
-    onSelect=${(k) => (k === 'run' ? onRun() : k === 'pause' ? onPause() : onDelete())}
-    trigger=${(p) => html`<button type="button" ...${p} class="pb-icon-btn sm" aria-label="Task options"><${Icon} name="DotsThree" /></button>`} />`;
-  const side = html`<aside class="tf-side" aria-label="Runs">
-    <section><h3 class="pb-eyebrow">${isNew ? 'First run' : 'Next run'}</h3>
-      ${running ? html`<p class="tf-big is-run">Running<span class="tf-dots"><i></i><i></i><i></i></span></p><p class="tf-when">Started just now</p>`
-        : n ? html`<p class="tf-big num">${countdown(n).map(([v, u]) => html`${v}<small>${u}</small> `)}</p><p class="tf-when num">${n.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} · ${t12(n)}</p>`
-        : html`<p class="tf-big is-muted">Paused</p><p class="tf-when">Resume it to schedule the next run.</p>`}
-    </section>
-    ${!isNew && html`<section><h3 class="pb-eyebrow">Run history${t.unread && html` <span class="tk-unread">Unread result</span>`}</h3><${History} runs=${t.runs} /></section>`}
-    ${isNew && html`<section><h3 class="pb-eyebrow">How it works</h3><p class="tf-muted">Each run follows the instructions and reports back in a conversation. You can pause it any time.</p></section>`}
-  </aside>`;
+  const paused = !isNew && d.status === 'paused';
   return html`<div class="pr-scroll"><div class="pr-detail tf-detail pr-enter" data-flip="page">
-    <div class="tf-body">
+    <div>
       ${back}
       <nav class="pr-crumb" aria-label="Breadcrumb"><a href="#/" onClick=${(e) => { e.preventDefault(); close(); }}>Scheduled tasks</a><span>/</span><span class="cur">${isNew ? 'New task' : d.name || 'Untitled task'}</span></nav>
       <div class="pr-head">
-        <textarea class="pb-inline pr-title" rows="1" aria-label="Task name" placeholder=${isNew ? 'Name this task' : 'Untitled task'} value=${d.name}
+        <textarea class="pb-inline pr-title" rows="1" aria-label="Task name" placeholder=${isNew ? 'Untitled task' : 'Untitled task'} value=${d.name}
           onKeyDown=${(e) => e.key === 'Enter' && e.preventDefault()} onInput=${(e) => set({ name: e.target.value.replace(/\n/g, ' ') })}></textarea>
-        ${!isNew && html`<div class="pr-edited">${menu}</div>`}
+        ${!isNew && html`<div class="pr-edited num">${running ? 'Running now' : n ? 'Next ' + nextLabel(n) : 'Paused'}
+          <${MenuButton} align="end" width=${190} items=${[
+              { key: 'run', label: 'Run now', lead: html`<${Icon} name="Play" />` }, 'sep',
+              { key: 'delete', label: 'Delete task', danger: true, lead: html`<${Icon} name="Trash" />` }]}
+            onSelect=${(k) => (k === 'run' ? onRun() : onDelete())}
+            trigger=${(p) => html`<button type="button" ...${p} class="pb-icon-btn sm" style="margin-left:4px" aria-label="Task options"><${Icon} name="DotsThree" /></button>`} /></div>`}
       </div>
       <div class="pr-props">
-        ${!isNew && html`<${Status} t=${t} running=${running} /><span class="sep">·</span>`}
-        <span class="pr-prop is-static"><${Icon} name="Clock" />${freq(d.schedule)}</span><span class="sep">·</span>
-        <span class="pr-prop is-static">${city(d.schedule.tz)}</span>
-        ${d.project && html`<span class="sep">·</span><span class="pr-prop is-static"><${Icon} name="Briefcase" />${d.project}</span>`}
+        ${!isNew && html`<${MenuButton} items=${STATUS_OPTS} selected=${[d.status]} width=${160} onSelect=${(v) => v !== d.status && onPause()}
+          trigger=${(p) => html`<button type="button" ...${p} class="pr-prop" aria-label="Status"><${Status} t=${d} running=${running} /></button>`} /><span class="sep">·</span>`}
+        <span class="pr-prop is-static"><${Icon} name="Clock" />${freq(d.schedule)}</span>
+        ${d.project && html`<span class="sep">·</span><span class="pr-prop is-static">${d.project}</span>`}
       </div>
-      ${!isNew && html`<div class="tk-actions">
-        <button type="button" class="pb-btn pb-btn-secondary sm" disabled=${running} onClick=${onRun}><${Icon} name="Play" />Run now</button>
-        <button type="button" class="pb-btn pb-btn-secondary sm" onClick=${onPause}><${Icon} name=${t.status === 'paused' ? 'Play' : 'Pause'} />${t.status === 'paused' ? 'Resume' : 'Pause'}</button>
-      </div>`}
-      <section class="tf-sec" aria-labelledby="s-ins">
-        <h2 id="s-ins" class="tf-sec-h">Instructions</h2><p class="pr-note">What Magnar does each time the task runs.</p>
-        <textarea id="t-ins" class="pr-filled tf-ins" rows="3" aria-labelledby="s-ins" placeholder="E.g. Revisa los contratos que se subieron esta semana y haz un resumen corto de cada uno."
-          value=${d.instructions} onInput=${(e) => set({ instructions: e.target.value })}></textarea>
-      </section>
-      <section class="tf-sec" aria-labelledby="s-sch">
-        <h2 id="s-sch" class="tf-sec-h">Schedule</h2><p class="pr-note">Pick it, or describe it with AI.</p>
-        <${Schedule} s=${d.schedule} setS=${setS} aiOpen=${aiOpen} />
-      </section>
-      <section class="tf-sec" aria-labelledby="s-del">
-        <h2 id="s-del" class="tf-sec-h">Where it runs</h2>
-        <div class="tk-grid2">
-          <${Field} label="Conversation" id="t-conv"><${Pick} id="t-conv" value=${d.conversation} options=${CONV} onChange=${(v) => set({ conversation: v })} wide /><//>
-          ${d.conversation === 'existing' ? html`<${Field} label="Select a conversation" id="t-cid"><${Pick} id="t-cid" value=${d.conversationId} options=${CONVERSATIONS} onChange=${(v) => set({ conversationId: v })} wide /><//>`
-            : html`<${Field} label="Project" id="t-proj"><${Pick} id="t-proj" value=${d.project} options=${PROJECTS} onChange=${(v) => set({ project: v })} icon="Briefcase" wide /><//>`}
-          ${d.conversation === 'existing' && html`<${Field} label="Project" id="t-proj"><${Pick} id="t-proj" value=${d.project} options=${PROJECTS} onChange=${(v) => set({ project: v })} icon="Briefcase" wide /><//>`}
-          <${Field} label="Agent tier" id="t-tier"><${Pick} id="t-tier" value=${d.tier} options=${TIERS} onChange=${(v) => set({ tier: v })} width=${160} wide /><//>
-        </div>
-      </section>
-      <section class="tf-sec" aria-labelledby="s-not">
-        <h2 id="s-not" class="tf-sec-h">Notification channels</h2>
-        <div class="tr-checks">
-          <label class="tr-check"><input type="checkbox" checked=${d.push} onChange=${(e) => set({ push: e.target.checked })} />Push</label>
-          <label class="tr-check"><input type="checkbox" checked=${d.email} onChange=${(e) => set({ email: e.target.checked })} />Email</label>
-        </div>
-        <p class="tk-hint">These channels are used only when the agent requests an update, following your instructions.</p>
-      </section>
+      <div style="margin-top:40px">
+        <div class="pr-rules-h"><h2>Plan</h2><span class="c">4 steps</span>
+          ${!isNew && html`<span class="grow"></span><button type="button" class="pb-btn pb-btn-secondary sm" disabled=${running || paused} onClick=${onRun}><${Icon} name="Play" />Run now</button>`}</div>
+        <p class="pr-note">${isNew ? 'Set when it runs, what Magnar does, and where the result goes.' : 'Open a step to change it.'}</p>
+        <ol class="pr-rules tf-plan">
+          <${Step} n=${1} step=${STEPS[0]} d=${d} open=${open.has('when')} toggle=${() => toggle('when')}>
+            <${Schedule} s=${d.schedule} setS=${setS} aiOpen=${aiOpen} /><//>
+          <${Step} n=${2} step=${STEPS[1]} d=${d} open=${open.has('do')} toggle=${() => toggle('do')}>
+            <label class="pr-flabel" for="t-ins">Instructions</label>
+            <textarea id="t-ins" class="pr-filled" rows="3" placeholder="E.g. Revisa los contratos que se subieron esta semana y haz un resumen corto de cada uno."
+              value=${d.instructions} onInput=${(e) => set({ instructions: e.target.value })}></textarea><//>
+          <${Step} n=${3} step=${STEPS[2]} d=${d} open=${open.has('where')} toggle=${() => toggle('where')}>
+            <${Field} label="Conversation" id="t-conv"><${Pick} id="t-conv" value=${d.conversation} options=${CONV} onChange=${(v) => set({ conversation: v })} wide /><//>
+            ${d.conversation === 'existing' && html`<${Field} label="Select a conversation" id="t-cid"><${Pick} id="t-cid" value=${d.conversationId} options=${CONVERSATIONS} onChange=${(v) => set({ conversationId: v })} wide /><//>`}
+            <div class="tk-grid2">
+              <${Field} label="Project" id="t-proj"><${Pick} id="t-proj" value=${d.project} options=${PROJECTS} onChange=${(v) => set({ project: v })} icon="Briefcase" wide /><//>
+              <${Field} label="Agent tier" id="t-tier"><${Pick} id="t-tier" value=${d.tier} options=${TIERS} onChange=${(v) => set({ tier: v })} width=${160} wide /><//>
+            </div><//>
+          <${Step} n=${4} step=${STEPS[3]} d=${d} open=${open.has('notify')} toggle=${() => toggle('notify')}>
+            <div class="tr-checks" style="margin-top:0">
+              <label class="tr-check"><input type="checkbox" checked=${d.push} onChange=${(e) => set({ push: e.target.checked })} />Push</label>
+              <label class="tr-check"><input type="checkbox" checked=${d.email} onChange=${(e) => set({ email: e.target.checked })} />Email</label>
+            </div>
+            <p class="tk-hint">These channels are used only when the agent requests an update, following your instructions.</p><//>
+        </ol>
+      </div>
+      ${!isNew && html`<section class="tf-history" aria-labelledby="h-runs">
+        <div class="pr-rules-h"><h2 id="h-runs">Run history</h2><span class="c">${t.runs.length}</span>${t.unread && html`<span class="tk-unread">Unread result</span>`}</div>
+        ${t.runs.length ? html`<ol>${t.runs.slice(0, 4).map((r) => html`<li><span class="num">${fmtRunAt(r.at)}</span>
+            <span class=${cx('tk-st', r.status === 'Failed' && 'is-fail', r.status === 'Running' && 'is-run')}><i></i>${r.status}</span></li>`)}</ol>`
+          : html`<p class="pr-note" style="margin-top:8px">No runs yet</p>`}
+      </section>`}
     </div>
-    ${side}
-  </div>
+  </div></div>
   ${isNew && html`<div class="pr-foot">
     <button type="button" class="pb-btn pb-btn-secondary" onClick=${close}>Cancel</button>
     ${ok ? html`<button type="button" class="pb-btn pb-btn-primary" onClick=${onCreate}>Create task</button>`
       : html`<${Tip} label="Add a name and instructions" side="top"><button type="button" class="pb-btn pb-btn-primary" disabled>Create task</button><//>`}
-  </div>`}</div>`;
+  </div>`}`;
 }
 
 // ------------------------------------------------------------ separador que se arrastra (igual que en Playbooks)
-const COL_MIN = 280, COL_DEFAULT = 340;
-const storedCol = () => { try { return Number(localStorage.getItem('tf-col')) || 0; } catch { return 0; } };
-function Resizer({ hostRef, onHide }) {
+// El panel ocupa la mitad de la pantalla; la lista, la otra mitad. Arrastrar cambia la proporción.
+const COL_MIN = 280;
+const storedCol = () => { try { return Number(localStorage.getItem('tf-col-half')) || 0; } catch { return 0; } };
+function Resizer({ hostRef, onHide, onCommit }) {
   const down = (e) => {
     if (e.button !== 0) return;
     const host = hostRef.current; const stage = host.querySelector('.pr-stage');
-    const left = host.getBoundingClientRect().left; const max = Math.min(640, host.clientWidth - 480);
+    const left = host.getBoundingClientRect().left; const max = host.clientWidth - 480;
     stage.classList.add('is-resizing'); document.body.style.cursor = 'col-resize';
     let w = null;
     const move = (ev) => { w = ev.clientX - left - 4; host.style.setProperty('--col', Math.max(COL_MIN, Math.min(max, w)) + 'px'); };
     const up = () => {
       removeEventListener('pointermove', move); removeEventListener('pointerup', up);
       stage.classList.remove('is-resizing'); document.body.style.cursor = '';
-      if (w !== null && w < 200) { host.style.setProperty('--col', COL_DEFAULT + 'px'); onHide(); return; }
-      if (w !== null) try { localStorage.setItem('tf-col', Math.max(COL_MIN, Math.min(max, w))); } catch {}
+      if (w !== null && w < 200) { onCommit(0); onHide(); return; }
+      if (w !== null) onCommit(Math.max(COL_MIN, Math.min(max, w)));
     };
     addEventListener('pointermove', move); addEventListener('pointerup', up); e.preventDefault();
   };
   return html`<span class="pr-resize" role="separator" aria-orientation="vertical" aria-label="Resize tasks" title="Drag to resize"
-    onPointerDown=${down} onDblClick=${() => { hostRef.current.style.setProperty('--col', COL_DEFAULT + 'px'); try { localStorage.setItem('tf-col', COL_DEFAULT); } catch {} }}></span>`;
+    onPointerDown=${down} onDblClick=${() => onCommit(0)}></span>`;
 }
 
 // ------------------------------------------------------------ app
@@ -352,9 +374,9 @@ function demoChat(kind) {
   const msgs = [{ from: 'me', text: 'Resume los contratos que se subieron la semana pasada' }];
   if (kind === 'schedule') return { ...emptyChat(), step: 'schedule', draft: d, msgs: [...msgs, { from: 'ai', text: 'Got it. When should it run?', chips: WHEN_CHIPS }] };
   msgs.push({ from: 'ai', text: 'Got it. When should it run?' }, { from: 'me', text: 'Every Monday at 9:00 AM' });
-  if (kind === 'notify') return { ...emptyChat(), step: 'notify', draft: d, msgs: [...msgs, { from: 'ai', text: 'How should Magnar let you know when there’s something new?', chips: NOTIFY_CHIPS }] };
-  msgs.push({ from: 'ai', text: 'How should Magnar let you know when there’s something new?' }, { from: 'me', text: 'Push' });
-  return { ...emptyChat(), step: 'draft', draft: d, msgs: [...msgs, { from: 'ai', text: 'Here’s the task. Create it as is, or review the details first.', draft: d }] };
+  if (kind === 'notify') return { ...emptyChat(), step: 'notify', draft: d, msgs: [...msgs, { from: 'ai', text: 'Okay: every Mon · 9:00 AM. How should Magnar let you know when there’s something new?', chips: NOTIFY_CHIPS }] };
+  msgs.push({ from: 'ai', text: 'Okay: every Mon · 9:00 AM. How should Magnar let you know when there’s something new?' }, { from: 'me', text: 'Push' });
+  return { ...emptyChat(), step: 'draft', draft: d, msgs: [...msgs, { from: 'ai', text: 'Here’s the plan. Create it as is, or review the details first.', draft: d }] };
 }
 
 function App() {
@@ -373,7 +395,14 @@ function App() {
   const split = splitParam();
   useEffect(() => { if (!toast) return; const x = setTimeout(() => setToast(null), 1700); return () => clearTimeout(x); }, [toast]);
   useEffect(() => { if (!fresh) return; const x = setTimeout(() => setFresh(null), 1600); return () => clearTimeout(x); }, [fresh]);
-  useLayoutEffect(() => { const c = storedCol(); if (c && host.current) host.current.style.setProperty('--col', Math.max(COL_MIN, c) + 'px'); }, []);
+  // Ancho de la lista: la mitad (el panel toma la otra mitad), salvo que la persona lo haya arrastrado.
+  const colRef = useRef(storedCol());
+  useLayoutEffect(() => {
+    const el = host.current; if (!el) return;
+    const fit = () => el.style.setProperty('--col', (colRef.current ? Math.min(colRef.current, el.clientWidth - 480) : Math.round(el.clientWidth / 2 - 4)) + 'px');
+    fit(); const ro = new ResizeObserver(fit); ro.observe(el); return () => ro.disconnect();
+  }, []);
+  const commitCol = (w) => { colRef.current = w; try { w ? localStorage.setItem('tf-col-half', w) : localStorage.removeItem('tf-col-half'); } catch {} host.current.style.setProperty('--col', (w || Math.round(host.current.clientWidth / 2 - 4)) + 'px'); };
 
   const isNew = path === 'new';
   const current = !isNew && path ? tasks.find((t) => t.id === path) : null;
@@ -395,7 +424,11 @@ function App() {
     const at = new Date(); setRunning(t.id); upd(t.id, (x) => ({ ...x, runs: [{ at, status: 'Running' }, ...x.runs] }));
     setTimeout(() => { setRunning(null); upd(t.id, (x) => ({ ...x, runs: x.runs.map((r) => (r.at === at ? { ...r, status: 'Completed' } : r)), unread: true })); setToast('Run completed'); }, 2400);
   };
-  const togglePause = (t) => { upd(t.id, (x) => ({ ...x, status: x.status === 'paused' ? 'active' : 'paused' })); setDrafts((d) => (d[t.id] ? { ...d, [t.id]: { ...d[t.id], status: d[t.id].status === 'paused' ? 'active' : 'paused' } } : d)); setToast(t.status === 'paused' ? 'Task resumed' : 'Task paused'); };
+  const togglePause = (t) => {
+    const next = t.status === 'paused' ? 'active' : 'paused';
+    upd(t.id, (x) => ({ ...x, status: next })); setDrafts((d) => (d[t.id] ? { ...d, [t.id]: { ...d[t.id], status: next } } : d));
+    setToast(next === 'active' ? 'Task resumed' : 'Task paused');
+  };
   const save = (id) => { const d = drafts[id]; if (!d) return; upd(id, () => d); setDrafts(({ [id]: _, ...r }) => r); setToast('Changes saved'); };
   const discard = (id) => setDrafts(({ [id]: _, ...r }) => r);
   const update = (id) => (fn) => setDrafts((d) => ({ ...d, [id]: fn(d[id] || tasks.find((t) => t.id === id)) }));
@@ -419,51 +452,53 @@ function App() {
     addEventListener('keydown', key); return () => removeEventListener('keydown', key);
   }, [mode, path, drafts]);
 
-  // ---------------- chat: Magnar pregunta solo lo que falta (cuándo y cómo avisar) y arma el borrador
+  // ---------------- chat: Magnar pregunta solo lo que falta (cuándo y cómo avisar) y arma el plan
   const say = (next, delay = 650) => { setChat((c) => ({ ...c, typing: true })); setTimeout(() => setChat((c) => ({ ...next(c), typing: false })), delay); };
-  const askNotify = (c, draft) => ({ ...c, step: 'notify', draft, msgs: [...c.msgs, { from: 'ai', text: `Okay: ${freq(draft.schedule).replace(/^./, (c) => c.toLowerCase())}. How should Magnar let you know when there’s something new?`, chips: NOTIFY_CHIPS }] });
-  const send = (text, preset) => {
+  const askNotify = (c, draft) => ({ ...c, step: 'notify', draft, msgs: [...c.msgs, { from: 'ai', text: `Okay: ${freq(draft.schedule).replace(/^./, (x) => x.toLowerCase())}. How should Magnar let you know when there’s something new?`, chips: NOTIFY_CHIPS }] });
+  const showPlan = (c, draft) => ({ ...c, step: 'draft', draft, msgs: [...c.msgs, { from: 'ai', text: 'Here’s the plan. Create it as is, or review the details first.', draft }] });
+  const send = (text) => {
     setChat((c) => ({ ...c, msgs: [...c.msgs, { from: 'me', text }] }));
     if (chat.step === 'idle' || chat.step === 'done') {
-      const t = preset ? { name: preset.name, instructions: preset.instructions } : readTask(text);
       const s = readSchedule(text);
+      const t = readTask(text); if (PRESET_NAMES[text]) t.name = PRESET_NAMES[text];
       const draft = { ...blank(), ...t, schedule: s || blank().schedule };
       say((c) => (s ? askNotify(c, draft) : { ...c, step: 'schedule', draft, msgs: [...c.msgs, { from: 'ai', text: 'Got it. When should it run?', chips: WHEN_CHIPS }] }));
     } else if (chat.step === 'schedule') {
       const s = readSchedule(text);
-      say((c) => (s ? askNotify(c, { ...c.draft, schedule: s }) : { ...c, msgs: [...c.msgs, { from: 'ai', text: 'I didn’t catch the time. Try “every Friday at 5 pm”, or pick one:', chips: WHEN_CHIPS }] }));
+      say((c) => (s ? askNotify(c, { ...c.draft, schedule: s }) : { ...c, msgs: [...c.msgs, { from: 'ai', text: 'I didn’t catch the time. Pick one:', chips: WHEN_CHIPS }] }));
     } else if (chat.step === 'notify') {
-      const tx = text.toLowerCase(); const push = /push|both|ambos|los dos/.test(tx), email = /mail|correo|both|ambos|los dos/.test(tx);
-      pickNotify({ push, email }, true);
+      const tx = text.toLowerCase();
+      say((c) => showPlan(c, { ...c.draft, push: /push|both|ambos/.test(tx), email: /mail|correo|both|ambos/.test(tx) }));
     }
   };
-  const pickNotify = (c0, typed) => say((c) => { const draft = { ...c.draft, push: c0.push, email: c0.email };
-    return { ...c, step: 'draft', draft, msgs: [...c.msgs, { from: 'ai', text: 'Here’s the task. Create it as is, or review the details first.', draft }] }; }, typed ? 650 : 550);
   const pick = (chip) => {
     setChat((c) => ({ ...c, msgs: [...c.msgs, { from: 'me', text: chip.label }] }));
     if (chat.step === 'schedule') say((c) => askNotify(c, { ...c.draft, schedule: sch(chip.s) }));
-    else if (chat.step === 'notify') pickNotify(chip);
+    else if (chat.step === 'notify') say((c) => showPlan(c, { ...c.draft, push: chip.push, email: chip.email }), 550);
   };
+  const markDone = (id) => setChat((c) => ({ ...c, step: 'done', msgs: c.msgs.map((m) => (m.draft && !m.done ? { ...m, done: id } : m)) }));
   const createDraft = () => {
     const id = addTask(chat.draft); const n = nextRuns(chat.draft.schedule, 1)[0];
-    setChat((c) => ({ ...c, step: 'done', msgs: c.msgs.map((m) => (m.draft && !m.done ? { ...m, done: id } : m)) }));
-    say((c) => ({ ...c, msgs: [...c.msgs, { from: 'ai', text: `Done. It’s in your list${n ? ', first run ' + nextLabel(n).replace(' · ', ' at ') : ''}. Anything else?` }] }), 500);
+    markDone(id);
+    say((c) => ({ ...c, msgs: [...c.msgs, { from: 'ai', text: `Done. It’s in your list${n ? ', first run ' + nextLabel(n).replace(' · ', ' at ') : ''}.` }] }), 500);
     setToast('Task created');
   };
   const reviewDraft = () => { setNewDraft(chat.draft); go('new'); };
 
   let pane = null;
-  if (isNew && newDraft) pane = html`<${TaskPane} key="new" isNew draft=${newDraft} update=${(fn) => setNewDraft((d) => fn(d))} aiOpen=${!!params.ai} back=${backBtn(go)} close=${() => { setNewDraft(null); go(''); }}
-    onCreate=${() => { const id = addTask(newDraft); setNewDraft(null); if (chat.step === 'draft') setChat((c) => ({ ...c, step: 'done', msgs: c.msgs.map((m) => (m.draft && !m.done ? { ...m, done: id } : m)) })); setToast('Task created'); go(id); }} />`;
-  else if (current) pane = html`<${TaskPane} key=${current.id} t=${current} draft=${drafts[current.id] || current} update=${update(current.id)} running=${running === current.id} back=${backBtn(go)}
-    close=${() => go('')} onRun=${() => runNow(current)} onPause=${() => togglePause(current)} onDelete=${() => setDel(current)} />`;
+  const back = html`<button type="button" class="pr-back" style="margin-bottom:16px" onClick=${() => go('')}><${Icon} name="ArrowLeft" />Scheduled tasks</button>`;
+  if (isNew && newDraft) pane = html`<${TaskPane} key="new" isNew draft=${newDraft} update=${(fn) => setNewDraft((d) => fn(d))} aiOpen=${!!params.ai} back=${back} close=${() => { setNewDraft(null); go(''); }}
+    onCreate=${() => { const id = addTask(newDraft); setNewDraft(null); if (chat.step === 'draft') markDone(id); setToast('Task created'); go(id); }} />`;
+  else if (current) pane = html`<${TaskPane} key=${current.id} t=${current} draft=${drafts[current.id] || current} update=${update(current.id)} running=${running === current.id} back=${back}
+    initStep=${params.step} close=${() => go('')} onRun=${() => runNow(current)} onPause=${() => togglePause(drafts[current.id] || current)} onDelete=${() => setDel(current)} />`;
   const count = current ? changes(drafts[current.id], current) : 0;
 
-  const newBtn = (sm) => html`<button type="button" class=${cx('pb-btn', sm ? 'pb-btn-secondary sm' : 'pb-btn-secondary')} onClick=${() => { setNewDraft(null); go('new'); }}><${Icon} name="Plus" />New task</button>`;
+  const newBtn = (sm) => html`<button type="button" class=${cx('pb-btn pb-btn-primary', sm && 'sm')} onClick=${() => { setNewDraft(null); go('new'); }}><${Icon} name="Plus" />New task</button>`;
   const body = tasks.length === 0
     ? html`<${EmptyState} kind="task" title="No scheduled tasks yet" text="Describe one above, or create it step by step." action=${newBtn(false)} />`
     : html`
-      <div class="tf-sticky"><${StatusTabs} value=${status} onChange=${setStatus} counts=${counts} trailing=${!compact && html`<${SearchBox} value=${q} onInput=${setQ} placeholder="Search tasks" width="240px" />`} /></div>
+      <div class="tf-sticky"><${StatusTabs} value=${status} onChange=${setStatus} counts=${counts}
+        trailing=${!compact && html`<div class="tf-tools"><${SearchBox} value=${q} onInput=${setQ} placeholder="Search tasks" width="240px" />${newBtn(false)}</div>`} /></div>
       ${compact && html`<div class="tf-colsearch"><${SearchBox} value=${q} onInput=${setQ} placeholder="Search tasks" width="100%" /></div>`}
       ${shown.length ? html`<div class="tf-table">
           <div class="pr-thead" aria-hidden="true"><span class="nm">Name</span><span>Frequency</span><span>Next run</span><span class="st">Status</span><span></span><span></span></div>
@@ -478,13 +513,13 @@ function App() {
         <div class="pr-scroll"><div class="pr-lib-inner"><div class="pr-lib-pad">
           <div class="pr-khead"><h1 class="pb-section">Scheduled tasks</h1>
             ${!compact && html`<${Tip} label="Tasks run on their own and report back in a conversation"><button type="button" class="pb-icon-btn sm" aria-label="About scheduled tasks"><${Icon} name="Info" /></button><//>`}
-            <span class="grow"></span>${tasks.length > 0 && newBtn(true)}</div>
+            <span class="grow"></span>${compact && tasks.length > 0 && newBtn(true)}</div>
           <${Ask} chat=${chat} send=${send} pick=${pick} createDraft=${createDraft} reviewDraft=${reviewDraft} reset=${() => setChat(emptyChat())} openTask=${(id) => go(id)} compact=${compact} />
           ${body}
         </div></div></div>
       </section>
       ${pane && html`<main class="pr-pane">
-        ${mode === 'split' && html`<${Resizer} hostRef=${host} onHide=${() => nav(path, { ...rest, wide: 1 })} />`}
+        ${mode === 'split' && html`<${Resizer} hostRef=${host} onHide=${() => nav(path, { ...rest, wide: 1 })} onCommit=${commitCol} />`}
         <span class="pr-grip"><${Tip} side="right" label=${mode === 'wide' ? 'Show tasks' : 'Hide tasks'} kbd="⌘\\">
           <button type="button" aria-label=${mode === 'wide' ? 'Show tasks' : 'Hide tasks'} onClick=${() => nav(path, { ...rest, wide: mode === 'wide' ? undefined : 1 })}>
             <${Icon} name=${mode === 'wide' ? 'CaretRight' : 'CaretLeft'} /></button><//></span>
@@ -494,13 +529,12 @@ function App() {
           ${current && html`<${SaveBar} count=${count} saved=${!!toast && !count} message=${toast} onDiscard=${() => discard(current.id)} onSave=${() => save(current.id)} />`}
         </div></div>
       </main>`}
-      ${(!current) && toast && html`<div class="pr-toast" role="status"><${Icon} name="CheckCircle" />${toast}</div>`}
+      ${!current && toast && html`<div class="pr-toast" role="status"><${Icon} name="CheckCircle" />${toast}</div>`}
     </div></div>
     <${AlertDialog} open=${!!del} onClose=${() => setDel(null)} title="Delete this task?"
       description=${del ? `“${del.name}” will stop running and its history will be deleted. This can’t be undone.` : ''}
       actionLabel="Delete" onAction=${() => { const id = del.id; setDel(null); setTasks((ts) => ts.filter((t) => t.id !== id)); discard(id); setToast('Task deleted'); if (path === id) go(''); }} />
   <//>`;
 }
-const backBtn = (go) => html`<button type="button" class="pr-back" style="margin-bottom:16px" onClick=${() => go('')}><${Icon} name="ArrowLeft" />Scheduled tasks</button>`;
 
 render(html`<${App} />`, document.getElementById('root'));
