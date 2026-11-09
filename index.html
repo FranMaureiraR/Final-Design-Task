@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en" class="notranslate bg-background light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Magnar flows</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
+  <link rel="stylesheet" href="styles/magnar.css" />
+</head>
+<body class="min-h-svh bg-background font-sans antialiased">
+  <main class="mx-auto flex min-h-svh max-w-lg flex-col justify-center gap-6 p-6">
+    <div class="space-y-1">
+      <h1 class="text-base font-medium">Magnar — flujos recreados</h1>
+      <p class="text-sm text-muted-foreground">Cada flujo vive en su propia carpeta y se puede rediseñar por separado.</p>
+    </div>
+    <div class="grid gap-2">
+      <a href="playbooks/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Playbooks</div>
+        <div class="text-xs text-muted-foreground">Knowledge › Playbooks: lista, detalle con reglas, modal "New Playbook", filtros.</div>
+      </a>
+      <a href="tasks/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Scheduled tasks</div>
+        <div class="text-xs text-muted-foreground">Lista de tareas y modal "New task" con todas las opciones de agenda.</div>
+      </a>
+      <a href="revision-nda/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Aplicar un playbook — Revisión de NDA</div>
+        <div class="text-xs text-muted-foreground">Chat con la revisión del playbook, sugerencias, citas y el documento al lado (vista dividida). Menú "+ › Playbooks".</div>
+      </a>
+    </div>
+    <div class="space-y-1 pt-2">
+      <h2 class="text-sm font-medium">Prototipos del rediseño</h2>
+      <p class="text-xs text-muted-foreground">Dos propuestas para Playbooks y una para Tasks. Agrega <code>?split=50</code> antes del # para verlas junto al chat.</p>
+    </div>
+    <div class="grid gap-2">
+      <a href="playbooks-refinada/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Versión A · Playbooks en cards</div>
+        <div class="text-xs text-muted-foreground">Biblioteca en cards con paginador. Al abrir un playbook, la biblioteca queda como columna y el playbook se abre al lado.</div>
+      </a>
+      <a href="playbooks-lista/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Versión B · Playbooks en lista</div>
+        <div class="text-xs text-muted-foreground">Biblioteca en tabla. Al abrir un playbook, la tabla se angosta y queda como columna.</div>
+      </a>
+      <a href="tasks-refinada/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Scheduled tasks · Agenda</div>
+        <div class="text-xs text-muted-foreground">Las ejecuciones ordenadas por día y la tarea elegida en un panel. Crear y editar en el mismo panel.</div>
+      </a>
+    </div>
+    <div class="space-y-1 pt-2">
+      <h2 class="text-sm font-medium">Exploraciones anteriores</h2>
+    </div>
+    <div class="grid gap-2">
+      <a href="playbooks-documento/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Playbooks · Documento</div>
+        <div class="text-xs text-muted-foreground">Biblioteca en tabla; el playbook es un documento que se escribe. Crear y editar son la misma pantalla.</div>
+      </a>
+      <a href="playbooks-final/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Playbooks · Versión final</div>
+        <div class="text-xs text-muted-foreground">Desde Figma: biblioteca en cards, crear como página y reglas como cards expandibles. Solo lo que Magnar ya tiene.</div>
+      </a>
+      <a href="playbooks-a/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Playbooks · Rediseño A: Índice + panel</div>
+        <div class="text-xs text-muted-foreground">Índice de playbooks + resumen. Cada regla se edita en un panel lateral expandible.</div>
+      </a>
+      <a href="playbooks-b/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Playbooks · Rediseño B: Documento</div>
+        <div class="text-xs text-muted-foreground">El playbook se lee como documento y se edita en el lugar. Biblioteca en página propia.</div>
+      </a>
+      <a href="playbooks-c/" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Playbooks · Rediseño C: Matriz de posiciones</div>
+        <div class="text-xs text-muted-foreground">Cláusulas × Standard / Fallback / Unacceptable. Las celdas vacías se ven de inmediato.</div>
+      </a>
+      <a href="playbooks-before/?split=50#/pbk-01a1b29e-78ab" class="rounded-lg border p-4 transition-colors hover:bg-muted/60">
+        <div class="text-sm font-medium">Original en vista dividida (bug de scroll)</div>
+        <div class="text-xs text-muted-foreground">playbooks/ sin modificar, montado al 50% junto al chat: la columna de reglas queda en 0px.</div>
+      </a>
+    </div>
+    <p class="pt-4 text-xs text-muted-foreground">© 2026 Francisca Maureira. Diseño y prototipos de autoría propia, hechos para un desafío de diseño. Todos los derechos reservados. Los datos son de muestra.</p>
+  </main>
+</body>
+</html>

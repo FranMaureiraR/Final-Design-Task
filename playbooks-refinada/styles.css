@@ -1,0 +1,340 @@
+/*
+  Propuesta "Refinada". Escena con 3 modos: full (biblioteca), split (biblioteca en columna de 340px + ventana)
+  y wide (ventana sola). Layout por container queries sobre el panel. Tokens en /shared/pb-system.css.
+  Tasks (/tasks-refinada/) usa este mismo archivo.
+*/
+.pr-host { container: pr / inline-size; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; --col: 340px; }
+section[role=tabpanel]:has(.pr-stage) { background: transparent; border-color: transparent; overflow: hidden; }
+.pr-stage { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; gap: 8px; }
+.pr-scroll { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.pr-pane .pr-scroll:hover { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+
+/* ---------------------------------------------------------------- biblioteca */
+/* El ancho se anima; el contenido conserva su ancho final para no re-acomodarse a mitad de camino. */
+.pr-lib { flex: none; width: 100cqw; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  transition: width .38s var(--ease), opacity .24s ease, margin .38s var(--ease), border-width .38s; }
+.pr-lib-inner { width: calc(100cqw - 2px); min-height: 100%; display: flex; flex-direction: column; transition: transform .38s var(--ease); }
+.pr-stage[data-mode=split] .pr-lib { width: var(--col); }
+.pr-stage[data-mode=split] .pr-lib-inner, .pr-stage[data-mode=wide] .pr-lib-inner { width: calc(var(--col) - 2px); }
+.pr-stage[data-mode=wide] .pr-lib { width: 0; opacity: 0; margin-right: -8px; border-width: 0; }
+.pr-stage[data-mode=wide] .pr-lib-inner { transform: translateX(-24px); }
+.pr-stage.is-resizing .pr-lib, .pr-stage.is-resizing .pr-lib-inner { transition: none; }
+.pr-stage.is-resizing { user-select: none; }
+.pr-lib-pad { flex: 1; display: flex; flex-direction: column; padding: 32px 40px 64px; }
+.pr-stage:not([data-mode=full]) .pr-lib-pad { padding: 20px 12px 32px; }
+
+.pr-khead { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 32px; padding: 0 4px; }
+
+/* Pestañas de Knowledge: el subrayado se desliza al cambiar; en la columna, solo la activa muestra su nombre */
+.pr-tabs { position: relative; display: flex; align-items: flex-end; gap: 24px; height: 44px; margin-top: 16px; padding: 0 4px; box-shadow: inset 0 -1px 0 var(--line); }
+.pr-stage:not([data-mode=full]) .pr-tabs { gap: 4px; margin-top: 8px; }
+.pr-tabs .grow { flex: 1; }
+.pr-tabs .info { align-self: center; }
+.pr-tab { position: relative; display: inline-flex; align-items: center; height: 40px; padding: 0 2px; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--ink-2); transition: color .12s; white-space: nowrap; border-radius: 6px 6px 0 0; }
+.pr-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
+.pr-tab:hover { color: var(--ink); }
+.pr-tab.is-on { color: var(--ink); }
+/* La etiqueta se abre y se cierra en .32s; el texto aparece cuando ya hay espacio y se va antes de cerrarse. */
+.pr-tab .lbl { display: inline-block; overflow: hidden; max-width: 120px; margin-left: 6px;
+  transition: max-width .32s var(--ease), margin .32s var(--ease), opacity .2s ease .1s; }
+.pr-stage:not([data-mode=full]) .pr-tab { padding: 0 6px; }
+.pr-stage:not([data-mode=full]) .pr-tab:not(.is-on) .lbl { max-width: 0; opacity: 0; margin-left: 0; transition: max-width .32s var(--ease), margin .32s var(--ease), opacity .12s ease; }
+.pr-tabs-bar { position: absolute; left: 0; bottom: 0; width: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--ink); transition: transform .28s var(--ease), width .28s var(--ease); pointer-events: none; will-change: transform, width; }
+
+/* Barra de filtros: una fila a pantalla completa; dos filas en la columna */
+.pr-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 24px; padding: 0 4px; }
+.pr-toolbar .grow { flex: 1; }
+.pr-toolbar .pb-search { width: clamp(240px, 26cqw, 340px); }
+.pr-coltools { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding: 0 4px; }
+.pr-coltools .pb-search { width: 100%; }
+.pr-pillrow { overflow-x: auto; scrollbar-width: none; margin-right: -4px; padding-right: 16px;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent); }
+.pr-pillrow::-webkit-scrollbar { display: none; }
+
+/* Card "Create new …" (Figma 39:8958): primera tarjeta de la biblioteca */
+.pr-create-card { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 300px; margin-top: 24px; padding: 14px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-align: left; transition: border-color .12s, background-color .12s; }
+.pr-create-card:hover { border-color: var(--line-strong); background: var(--canvas); }
+.pr-create-card .t { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 500; }
+.pr-create-card .d { padding-left: 24px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
+
+/* Grupos */
+.pr-group { margin-top: 36px; padding: 0 4px; }
+.pr-stage:not([data-mode=full]) .pr-group { margin-top: 24px; padding: 0; }
+.pr-group-h { display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px; }
+div.pr-group-h { align-items: center; justify-content: space-between; min-height: 28px; }
+.pr-stage:not([data-mode=full]) .pr-group-h { padding: 0 12px; margin-bottom: 8px; }
+.pr-group-h .c { margin-left: 6px; color: var(--ink-3); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
+/* Paginador: puntos + flechas (como el artifact), las páginas se deslizan con scroll-snap */
+.pr-pager { display: inline-flex; align-items: center; gap: 6px; }
+.pr-pager .dots { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; }
+.pr-pager .dots button { width: 6px; height: 6px; border-radius: 99px; background: var(--line-strong); transition: width .24s var(--ease), background-color .2s; }
+.pr-pager .dots button[aria-current=true] { width: 16px; background: var(--ink); }
+.pr-pager .arw { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); background: var(--surface); transition: box-shadow .12s, color .12s, opacity .12s; }
+.pr-pager .arw:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink); }
+.pr-pager .arw:disabled { opacity: .4; cursor: default; }
+.pr-pager .arw svg { width: 14px; height: 14px; }
+.pr-track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.pr-track::-webkit-scrollbar { display: none; }
+.pr-page { flex: 0 0 100%; scroll-snap-align: start; display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 16px; align-content: start; }
+
+/* Cards (captura de la usuaria): ícono en cuadro con tinte, nombre de 15px, una línea de descripción y meta abajo.
+   Misma altura en todas; reglas · país a la izquierda y la fecha corta a la derecha. Hover por borde, sin sombra ni movimiento. */
+.pr-card { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 18px 20px 16px; border-radius: 12px; border: 1px solid oklch(93.5% 0 0); background: var(--surface);
+  color: var(--ink); cursor: pointer; transition: border-color .16s ease, background-color .16s ease; }
+.pr-card:hover, .pr-card.is-peek { border-color: var(--line-strong); background: var(--canvas); }
+.pr-card:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+.pr-card .r1 { display: flex; align-items: center; gap: 10px; min-width: 0; height: 24px; }
+.pr-card .name { flex: 1; min-width: 0; font-size: 15px; line-height: 22px; font-weight: 500; letter-spacing: -0.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-card .desc { margin-top: 8px; font-size: 14px; line-height: 20px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-card .r3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; font-size: 13px; line-height: 18px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pr-card .r3 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pr-card .r3 .sep { margin: 0 7px; color: var(--ink-3); }
+.pr-card .r3 .ago { flex-shrink: 0; color: var(--ink-3); }
+/* ··· aparece al pasar el mouse (la card en reposo queda como en la captura) */
+.pr-more { display: inline-flex; margin: -4px -8px -4px 0; opacity: 0; transition: opacity .12s; }
+.pr-card:hover .pr-more, .pr-li:hover .pr-more, .pr-more:focus-within, .pr-more:has([aria-expanded=true]) { opacity: 1; }
+/* Ícono de visibilidad como en Figma: trazo simple, sin fondo */
+.pr-vis { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex-shrink: 0; color: var(--ink-3); }
+.pr-vis svg { width: 15px; height: 15px; }
+.pr-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--warning); flex-shrink: 0; }
+.pr-fade { display: contents; }
+
+/* Versión B: lista con columnas alineadas; el chevron a la derecha abre el playbook al lado */
+/* Las columnas tienen ancho propio (sin column-gap) para que la grilla pueda animarse:
+   al abrir un playbook, Rules / Country / Edited / ··· se cierran a 0 y la tabla se angosta junto con la columna. */
+.pr-host.is-list .pr-lib-inner, .pr-host.is-list .pr-stage[data-mode] .pr-lib-inner { width: 100%; }
+.pr-thead, .pr-li { --cols: 22px minmax(0, 1fr) 112px 120px 132px 40px 24px; display: grid; grid-template-columns: var(--cols); align-items: center;
+  transition: grid-template-columns .38s var(--ease); }
+.pr-stage:not([data-mode=full]) :is(.pr-thead, .pr-li) { --cols: 22px minmax(0, 1fr) 0px 0px 0px 0px 24px; }
+/* "Name" alineado con el borde de la tabla */
+.pr-thead { padding: 0 16px 8px 0; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ink-3); white-space: nowrap; }
+.pr-thead .nm { grid-column: 1 / 3; }
+.pr-thead > span { overflow: hidden; transition: opacity .2s ease; }
+.pr-list { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.pr-page.is-list { display: block; }
+.pr-li { position: relative; min-height: 64px; padding: 10px 16px; cursor: pointer; transition: grid-template-columns .38s var(--ease), background-color .14s ease; }
+.pr-li + .pr-li { box-shadow: inset 0 1px 0 var(--line); }
+.pr-li:hover, .pr-li.is-peek { background: var(--canvas); }
+.pr-li.is-on { background: var(--canvas-2); }
+.pr-li.is-on::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px; border-radius: 0 2px 2px 0; background: var(--ink); }
+.pr-li:focus-visible { outline: 2px solid var(--tint); outline-offset: -2px; }
+.pr-li .main { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-left: 14px; }
+.pr-li .name { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; line-height: 20px; font-weight: 500; }
+.pr-li .name > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-li .d { font-size: 13px; line-height: 18px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-li .col { padding-left: 16px; font-size: 13px; line-height: 18px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .2s ease; }
+.pr-li .col.ed { color: var(--ink-3); }
+.pr-thead > span:nth-child(n+2) { padding-left: 16px; }
+.pr-thead > .nm { padding-left: 0; }
+.pr-li .pr-more { margin: 0; justify-self: end; overflow: hidden; }
+.pr-li .chev { display: inline-flex; justify-self: end; color: var(--ink-3); transition: transform .2s var(--ease), color .12s; }
+.pr-li .chev svg { width: 16px; height: 16px; }
+.pr-li:hover .chev { color: var(--ink); transform: translateX(2px); }
+.pr-stage:not([data-mode=full]) .pr-li .col, .pr-stage:not([data-mode=full]) .pr-thead > span:not(.nm), .pr-stage:not([data-mode=full]) .pr-li .pr-more { opacity: 0; pointer-events: none; }
+.pr-stage:not([data-mode=full]) .pr-li { min-height: 60px; padding: 10px 12px; }
+.is-list .pr-stage:not([data-mode=full]) .pr-group-h { padding: 0; }
+.is-list .pr-stage:not([data-mode=full]) .pr-group-h .pr-pager .dots { display: none; }
+@container pr (width < 900px) {
+  .pr-stage[data-mode=full] :is(.pr-thead, .pr-li) { --cols: 22px minmax(0, 1fr) 0px 0px 0px 40px 24px; }
+  .pr-stage[data-mode=full] .pr-li .col, .pr-stage[data-mode=full] .pr-thead > span:nth-child(n+2):nth-child(-n+4) { opacity: 0; }
+}
+
+/* La barra de búsqueda cambia de forma al abrir un playbook: entra con un fundido */
+.pr-tools { animation: pr-tools-in .26s var(--ease) .12s both; }
+@keyframes pr-tools-in { from { opacity: 0; transform: translateY(4px); } }
+
+/* Columna (A): el resaltado de la fila elegida es una sola pieza que se desliza */
+.pr-lib-pad { position: relative; }
+.pr-sel { position: absolute; z-index: 0; left: 0; right: 0; top: 0; height: 0; border-radius: 8px; background: var(--canvas-2); box-shadow: inset 0 0 0 1px var(--line);
+  pointer-events: none; opacity: 0; transition: transform .3s var(--ease), height .3s var(--ease), opacity .2s ease; }
+.pr-sel::before { content: ''; position: absolute; left: -9px; top: 12px; bottom: 12px; width: 2px; border-radius: 2px; background: var(--ink); }
+.pr-rows .pr-row { z-index: 1; }
+
+/* Detalle: al cambiar de playbook el contenido entra en tres tiempos (encabezado, meta, reglas) */
+.pr-enter > div > * { animation: pr-enter .32s var(--ease) both; }
+.pr-enter > div > :nth-child(3) { animation-delay: .03s; }
+.pr-enter > div > :nth-child(4) { animation-delay: .06s; }
+.pr-enter > div > :nth-child(5) { animation-delay: .09s; }
+.pr-enter > div > :nth-child(n+6) { animation-delay: .12s; }
+.pr-enter > .pr-index { animation: pr-enter .32s var(--ease) .12s both; }
+@keyframes pr-enter { from { opacity: 0; transform: translateY(8px); } }
+
+/* Filas en la columna colapsada (Figma 07): nombre + candado, una línea de descripción y meta */
+.pr-rows { display: flex; flex-direction: column; gap: 6px; }
+.pr-row { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 14px 12px; border-radius: 8px; border: 1px solid transparent; color: var(--ink); transition: background-color .12s, border-color .12s; }
+.pr-row + .pr-row::after { content: ''; position: absolute; left: 12px; right: 12px; top: -4px; height: 1px; background: var(--line); transition: opacity .12s; }
+.pr-row:hover, .pr-row.is-peek { background: var(--canvas); }
+.pr-row:hover::after, .pr-row:hover + .pr-row::after, .pr-row.is-on::after, .pr-row.is-on + .pr-row::after { opacity: 0; }
+.pr-row.is-on { background: transparent; }
+.pr-row .t { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pr-row .name { flex: 1; min-width: 0; font-size: 14px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-row .t > svg { width: 14px; height: 14px; color: var(--ink-3); flex-shrink: 0; }
+.pr-row .d { font-size: 13px; line-height: 18px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-row .pb-meta { margin-top: 4px; }
+
+/* Estados de la biblioteca */
+.pr-noresults { display: flex; align-items: center; gap: 12px; margin-top: 32px; padding: 0 4px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
+.pr-skel { min-height: 104px; padding: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.pr-skel i { display: block; height: 10px; border-radius: 4px; background: var(--canvas-2); }
+
+/* Estado vacío con ilustración (hecha con los mismos componentes, sin imagen) */
+.pr-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 48px 16px; }
+.pr-empty h2 { margin-top: 28px; font-size: 15px; line-height: 22px; font-weight: 500; }
+.pr-empty p { margin-top: 4px; max-width: 420px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
+.pr-empty .pb-btn { margin-top: 20px; }
+.pr-stage:not([data-mode=full]) .pr-empty { padding: 32px 8px; }
+.pr-stage:not([data-mode=full]) .pr-ill { transform: scale(.62); margin: -56px 0; }
+.pr-ill { position: relative; width: 400px; height: 256px; border-radius: 16px; border: 1px dashed var(--line-strong); background: var(--canvas); }
+.pr-ill .chip { position: absolute; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 7px; background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 1px 2px oklch(0% 0 0 / .04); font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+.pr-ill .chip svg { width: 14px; height: 14px; }
+.pr-ill .chip.tinted { box-shadow: 0 0 0 1px oklch(var(--tint-ink) var(--tint-hue) / .35), 0 1px 2px oklch(0% 0 0 / .04); }
+.pr-ill .chip.tinted svg { color: var(--tint); }
+.pr-ill .chip .ok { display: inline-flex; width: 16px; height: 16px; border-radius: 99px; align-items: center; justify-content: center; background: var(--success); color: var(--surface); }
+.pr-ill .chip .ok svg { width: 10px; height: 10px; }
+.pr-ill .sheet { position: absolute; left: 108px; top: 112px; width: 196px; padding: 12px; border-radius: 9px; background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 8px 24px oklch(0% 0 0 / .06); transform: rotate(-2deg); }
+.pr-ill .sheet .h { display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 500; }
+.pr-ill .sheet .h svg { width: 14px; height: 14px; }
+.pr-ill .sheet .ln { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pr-ill .sheet .ln i { width: 6px; height: 6px; border-radius: 99px; flex-shrink: 0; }
+.pr-ill .sheet .ln b { height: 8px; border-radius: 4px; background: var(--canvas-2); }
+.pr-ill svg.arrow { position: absolute; color: var(--ink-2); overflow: visible; }
+.pr-ill svg.arrow path { stroke-dasharray: 120; stroke-dashoffset: 120; animation: pr-draw .6s var(--ease) forwards; }
+.pr-ill > * { animation: pr-pop .42s var(--ease) both; }
+@keyframes pr-pop { from { opacity: 0; translate: 0 6px; } }
+@keyframes pr-draw { to { stroke-dashoffset: 0; } }
+
+/* ---------------------------------------------------------------- ventana (crear / detalle) */
+.pr-pane { position: relative; flex: 1; min-width: 0; min-height: 0; }
+.pr-pane-clip { position: absolute; inset: 0; display: flex; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; animation: pr-in .3s ease-out; }
+@keyframes pr-in { from { opacity: 0; } }
+/* El contenido del detalle está centrado (máx. 680px): se desliza con la ventana en vez de cortarse */
+.pr-pane-inner { container: pane / inline-size; position: relative; flex: 1; width: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+/* Separador que se arrastra para cambiar el ancho (como el split de Magnar) */
+.pr-resize { position: absolute; z-index: 5; top: 0; bottom: 0; left: -8px; width: 8px; cursor: col-resize; touch-action: none; }
+.pr-resize::after { content: ''; position: absolute; top: 12px; bottom: 12px; left: 3px; width: 2px; border-radius: 2px; background: var(--line-strong); opacity: 0; transition: opacity .15s; }
+.pr-resize:hover::after, .pr-stage.is-resizing .pr-resize::after { opacity: 1; transition-delay: .1s; }
+.pr-toast { position: absolute; z-index: 8; left: 50%; bottom: 20px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 10px;
+  background: var(--surface); box-shadow: var(--menu-shadow), 0 0 0 1px var(--line); font-size: 14px; color: var(--ink-2); transform: translateX(-50%); animation: pr-bar-in .2s var(--ease); }
+.pr-toast svg { width: 14px; height: 14px; color: var(--success); }
+.pr-close { position: absolute; z-index: 5; top: 12px; right: 12px; }
+.pr-grip { position: absolute; z-index: 6; top: 50%; left: -11px; transform: translateY(-50%); }
+.pr-grip button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-3); transition: color .12s, border-color .12s, background-color .12s; }
+.pr-grip button:hover { color: var(--ink); border-color: var(--line-strong); background: var(--canvas); }
+.pr-grip svg { width: 12px; height: 12px; }
+.pr-stage[data-mode=wide] .pr-grip { left: 8px; }
+.pr-back { display: none; }
+
+/* Crear: columna de 640px en el tercio superior */
+.pr-create { width: 100%; max-width: 704px; margin: 0 auto; padding: max(64px, 11vh) 32px 32px; }
+.pr-fields { display: grid; grid-template-columns: minmax(0, 1fr) 140px 140px; gap: 12px; margin-top: 32px; }
+.pr-hr { border: 0; border-top: 1px solid var(--line); margin: 32px 0; }
+.pr-foot { position: sticky; bottom: 0; z-index: 3; display: flex; justify-content: flex-end; gap: 8px; padding: 12px 32px; background: var(--surface); box-shadow: 0 -1px 0 var(--line); }
+
+/* Detalle */
+.pr-detail { display: grid; grid-template-columns: minmax(0, 680px); justify-content: center; gap: 64px; padding: 48px 32px 120px; }
+.pr-crumb { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.pr-crumb a { color: var(--ink-3); border-radius: 4px; } .pr-crumb a:hover { color: var(--ink); }
+.pr-crumb .cur { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-head { display: flex; align-items: flex-start; gap: 16px; margin-top: 12px; }
+.pr-title { font-family: var(--serif); font-size: 26px; line-height: 32px; letter-spacing: -0.01em; }
+.pr-edited { display: flex; align-items: center; gap: 4px; height: 32px; flex-shrink: 0; font-size: 12px; line-height: 16px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pr-desc { margin-top: 8px; max-width: 68ch; font-size: 15px; line-height: 24px; color: var(--ink-2); }
+/* Meta como en Figma 07: "🔒 Private · 3 rules · Chile", texto gris de 13px, sin bandera */
+.pr-props { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; font-size: 13px; line-height: 18px; color: var(--ink-3); }
+.pr-props .sep { color: var(--ink-3); opacity: .8; }
+.pr-prop { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px; margin: 0 -6px; border-radius: 6px; color: var(--ink-3); transition: background-color .12s, color .12s; }
+.pr-prop:not(.is-static):hover, .pr-prop[aria-expanded=true] { background: var(--canvas-2); color: var(--ink); }
+.pr-prop svg { width: 14px; height: 14px; }
+.pr-index { display: none; }
+@container pane (width >= 940px) {
+  .pr-detail.has-index { grid-template-columns: minmax(0, 680px) 176px; gap: 48px; }
+  .pr-detail.has-index .pr-index { display: block; position: sticky; top: 48px; align-self: start; margin-top: 196px; }
+}
+.pr-index h3 { margin-bottom: 8px; }
+.pr-index a { position: relative; display: block; padding: 4px 0 4px 12px; font-size: 13px; line-height: 18px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 4px; }
+.pr-index a:hover { color: var(--ink); }
+.pr-index a.is-on { color: var(--ink); }
+.pr-index a.is-open { color: var(--ink); font-weight: 500; }
+.pr-index ol { position: relative; box-shadow: inset 1px 0 0 var(--line); }
+/* Una sola barra que se desliza a la regla activa (antes se quedaba quieta al hacer click) */
+.pr-index-bar { position: absolute; left: 0; top: 0; width: 2px; height: 0; border-radius: 2px; background: var(--ink); opacity: 0; pointer-events: none;
+  transition: transform .28s var(--ease), height .28s var(--ease), opacity .2s ease; }
+
+/* Barra flotante de cambios sin guardar (Figma 07) */
+.pr-savebar { position: absolute; z-index: 8; left: 50%; bottom: 20px; display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 6px 0 16px; border-radius: 10px;
+  background: var(--surface); box-shadow: var(--menu-shadow), 0 0 0 1px var(--line); font-size: 14px; line-height: 20px; white-space: nowrap;
+  transform: translate(-50%, 0); animation: pr-bar-in .2s var(--ease); }
+.pr-savebar .n { font-variant-numeric: tabular-nums; margin-right: 8px; }
+.pr-savebar .sep { width: 1px; height: 20px; background: var(--line); margin-right: 4px; }
+.pr-savebar.is-saved { color: var(--ink-2); padding-right: 16px; }
+.pr-savebar.is-saved svg { width: 14px; height: 14px; color: var(--success); margin-right: 4px; }
+@keyframes pr-bar-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+/* ---------------------------------------------------------------- reglas (Figma 07) */
+.pr-rules-h { display: flex; align-items: baseline; gap: 8px; }
+.pr-rules-h .grow { flex: 1; }
+.pr-rules-h .pb-btn { align-self: center; }
+.pr-rules-h h2 { font-size: 14px; line-height: 20px; font-weight: 500; }
+.pr-rules-h .c { font-size: 14px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pr-note { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.pr-rules-empty { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 72px; margin-top: 16px; padding: 0 16px 0 20px; border: 1px dashed var(--line-strong); border-radius: 8px; font-size: 14px; color: var(--ink-2); }
+.pr-rules { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.pr-rule { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); transition: border-color .12s, background-color 1s ease-out; }
+.pr-rule:hover { border-color: var(--line-strong); }
+.pr-rule.is-open { border-color: var(--line-strong); }
+.pr-rule-head { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 10px 10px 14px; cursor: pointer; border-radius: 10px; }
+.pr-num { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 20px; padding: 0 4px; flex-shrink: 0; border-radius: 5px; background: var(--canvas-2);
+  font-size: 11px; line-height: 14px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; transition: background-color .12s, color .12s; }
+.pr-rule.is-open .pr-num { background: var(--ink); color: var(--surface); }
+.pr-rule-head .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pr-rule-head .title { font-size: 14px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-rule-head .title.is-empty { color: var(--ink-3); font-weight: 400; }
+.pr-rule-head .prev { font-size: 13px; line-height: 20px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-rule-head .more { opacity: 0; transition: opacity .12s; }
+.pr-rule:hover .more, .pr-rule-head .more:focus-visible, .pr-rule-head .more[aria-expanded=true] { opacity: 1; }
+.pr-chev { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 6px; color: var(--ink-3); transition: background-color .12s, color .12s; }
+.pr-chev:hover { background: var(--canvas-2); color: var(--ink); }
+.pr-chev svg { width: 16px; height: 16px; transition: transform .18s var(--ease); }
+.pr-rule.is-open .pr-chev svg, .pr-sec.is-open .pr-chev svg { transform: rotate(180deg); }
+.pr-rule-body { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .18s var(--ease), opacity .18s var(--ease); }
+.pr-rule.is-open .pr-rule-body, .pr-sec.is-open .pr-rule-body { grid-template-rows: 1fr; opacity: 1; }
+.pr-rule-body > div { min-height: 0; overflow: hidden; }
+.pr-rule-pad { margin: 0 14px; padding: 20px 0 14px; border-top: 1px solid var(--line); }
+.pr-flabel { display: block; margin: 0 0 8px; font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink); }
+.pr-flabel + .pr-filled { margin-bottom: 20px; }
+.pr-filled { display: block; width: 100%; min-height: 40px; padding: 9px 12px; border-radius: 6px; border: 1px solid transparent; background: var(--canvas-2);
+  font: inherit; font-size: 14px; line-height: 20px; color: var(--ink); outline: none; resize: none; field-sizing: content; transition: background-color .12s, border-color .12s; }
+textarea.pr-filled { min-height: 104px; line-height: 24px; max-width: 100%; }
+.pr-filled:hover { background: var(--press); }
+.pr-filled:focus { background: var(--surface); border-color: var(--line-strong); outline: 2px solid var(--tint); outline-offset: 2px; }
+.pr-filled::placeholder { color: var(--ink-3); }
+.pr-rule-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; margin-top: 4px; font-size: 13px; }
+.pr-rule-foot .q { color: var(--ink); font-weight: 500; }
+.pr-square { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 6px; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); transition: color .12s, box-shadow .12s, background-color .12s; }
+.pr-square:hover { color: var(--destructive); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 30%, var(--line)); background: color-mix(in oklab, var(--destructive) 5%, transparent); }
+.pr-square svg { width: 16px; height: 16px; }
+.pr-add { display: flex; align-items: center; gap: 8px; width: 100%; height: 40px; margin-top: 8px; padding: 0 14px; border: 1px dashed transparent; border-radius: 8px; font-size: 14px; color: var(--ink-2); transition: border-color .12s, color .12s; }
+.pr-add:hover, .pr-add:focus-visible { border-color: var(--line-strong); color: var(--ink); }
+.pr-add svg { width: 14px; height: 14px; }
+
+/* ---------------------------------------------------------------- panel angosto (vista dividida) */
+@container pr (width < 760px) {
+  .pr-stage:not([data-mode=full]) .pr-lib { width: 0; opacity: 0; margin-right: -8px; border-width: 0; }
+  .pr-grip, .pr-close, .pr-crumb, .pr-resize { display: none; }
+  .pr-back { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
+  .pr-back svg { width: 14px; height: 14px; }
+  .pr-lib-pad { padding: 24px 16px 48px; }
+  .pr-toolbar { flex-wrap: wrap; }
+  .pr-toolbar .pb-search { width: 100%; }
+  .pr-detail { padding: 20px 20px 96px; }
+  .pr-create { padding: 24px 20px 24px; }
+  .pr-fields { grid-template-columns: 1fr 1fr; }
+  .pr-fields > :first-child { grid-column: 1 / -1; }
+  .pr-foot { padding: 12px 20px; }
+  .pr-ill { transform: scale(.8); margin: -30px 0; }
+}
+.pr-card .r3 { gap: 12px; }
+.pr-card .r3 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pr-card .r3 > span:last-child { flex-shrink: 0; }

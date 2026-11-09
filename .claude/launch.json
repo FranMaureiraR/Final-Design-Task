@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "magnar-flows", "runtimeExecutable": "ruby", "runtimeArgs": ["-run", "-e", "httpd", ".", "-p", "5178"], "port": 5178 }
+  ]
+}

@@ -1,0 +1,138 @@
+/* Scheduled tasks · agenda + panel. Usa los tokens y piezas de Playbooks (pb-system.css + playbooks-refinada/styles.css).
+   Diferencia con Playbooks: la home se ordena por tiempo (días y horas), no por contenido. */
+
+.tk-host { container: pr / inline-size; }
+.tk-sheet { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; gap: 8px; }
+.tk-main { flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.tk-main-in { padding: 32px 40px 64px; }
+.tk-head { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 4px; }
+.tk-head .grow, .tk-toolbar .grow, .tk-p-top .grow, .tk-actions .grow { flex: 1; }
+.tk-hint-pill { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 99px; box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 13px; line-height: 18px; color: var(--ink-2); white-space: nowrap; transition: box-shadow .12s, color .12s; }
+.tk-hint-pill:hover { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink); }
+.tk-hint-pill svg { width: 14px; height: 14px; }
+.tk-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 24px; padding: 0 4px; }
+.tk-seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--canvas-2); }
+.tk-seg button { height: 28px; padding: 0 12px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--ink-2); transition: background-color .14s, color .14s, box-shadow .14s; }
+.tk-seg button:hover { color: var(--ink); }
+.tk-seg button[aria-pressed=true] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 1px 2px oklch(0% 0 0 / .04); }
+
+/* Agenda: un grupo por día, una fila por ejecución */
+.tk-agenda { margin-top: 28px; padding: 0 4px; }
+.tk-day + .tk-day { margin-top: 24px; }
+.tk-day-h { display: flex; align-items: baseline; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 18px; font-weight: 400; }
+.tk-day-h b { font-weight: 500; color: var(--ink); }
+.tk-day-h span { color: var(--ink-3); }
+.tk-day-h .c { margin-left: auto; font-size: 12px; }
+.tk-run { position: relative; display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; column-gap: 16px; min-height: 60px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line); cursor: pointer; transition: background-color .14s ease; }
+.tk-run:hover { background: var(--canvas); }
+.tk-run.is-on { background: var(--canvas-2); }
+.tk-run.is-on::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px; border-radius: 0 2px 2px 0; background: var(--ink); }
+.tk-run:focus-visible { outline: 2px solid var(--tint); outline-offset: -2px; }
+.tk-run .tm { font-size: 13px; color: var(--ink-2); }
+.tk-run .main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tk-run .nm { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; line-height: 20px; font-weight: 500; }
+.tk-run .nm > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-run .sub { font-size: 13px; line-height: 18px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-run .sep { margin: 0 6px; }
+.tk-run .rt { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+.tk-run.is-paused .tm, .tk-run.is-paused .nm { color: var(--ink-2); }
+.tk-unread { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--line); background: var(--surface);
+  font-size: 11px; line-height: 16px; font-weight: 500; color: var(--ink-2); white-space: nowrap; letter-spacing: 0; text-transform: none; }
+.tk-none { font-size: 13px; color: var(--ink-3); padding: 12px 0; }
+
+/* Estado: punto + palabra */
+.tk-st { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
+.tk-st i { width: 6px; height: 6px; border-radius: 99px; background: var(--success); }
+.tk-st.is-paused i { background: var(--ink-3); }
+.tk-st.is-fail i { background: var(--destructive); }
+.tk-st.is-run i { background: var(--tint); animation: tk-pulse 1.2s ease-in-out infinite; }
+@keyframes tk-pulse { 50% { opacity: .35; } }
+
+/* Panel derecho: tarea elegida o formulario. Se ensancha al crear/editar. */
+.tk-panel { position: relative; flex: none; width: 400px; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; transition: width .34s var(--ease); }
+.tk-sheet[data-mode=form] .tk-panel { width: 560px; }
+.tk-panel-in { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 28px 32px; display: flex; flex-direction: column; gap: 22px; }
+.tk-panel-in > section { padding-top: 20px; border-top: 1px solid var(--line); }
+.tk-panel-in > section.tk-next { border-top: 0; padding-top: 4px; }
+.tk-panel section h4 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.tk-p-top { display: flex; align-items: center; gap: 4px; min-height: 32px; }
+.tk-close { display: none; }
+.tk-title { margin-top: 10px; font-family: var(--serif); font-size: 26px; line-height: 32px; font-weight: 400; letter-spacing: -0.01em; text-wrap: balance; }
+.tk-panel .pr-props { margin-top: 10px; }
+.tk-actions { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+.tk-next .big { font-size: 34px; line-height: 40px; font-weight: 500; letter-spacing: -0.02em; color: var(--ink); }
+.tk-next .big small { margin: 0 8px 0 4px; font-size: 14px; font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
+.tk-next .big.is-muted { font-size: 22px; line-height: 30px; color: var(--ink-3); }
+.tk-next .when { margin-top: 2px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
+.tk-instr { font-size: 14px; line-height: 22px; color: var(--ink); }
+.tk-dl { display: grid; grid-template-columns: 112px minmax(0, 1fr); row-gap: 10px; font-size: 13px; line-height: 18px; }
+.tk-dl dt { color: var(--ink-3); }
+.tk-dl dd { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-hist .bars { display: flex; gap: 4px; }
+.tk-hist .bars i { width: 10px; height: 22px; border-radius: 3px; background: var(--success); opacity: .8; }
+.tk-hist .bars i.is-fail { background: var(--destructive); }
+.tk-hist .bars i.is-run { background: var(--tint); animation: tk-pulse 1.2s ease-in-out infinite; }
+.tk-hist ol { margin-top: 12px; }
+.tk-hist li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; line-height: 18px; color: var(--ink-2); animation: pr-enter .24s var(--ease) both; }
+
+/* Formulario (mismos campos y textos que Magnar) */
+.tk-form { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tk-form-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 28px 28px; }
+.tk-form-h { font-family: var(--serif); font-size: 24px; line-height: 30px; font-weight: 400; letter-spacing: -0.01em; }
+.tk-field { margin-top: 18px; min-width: 0; }
+.tk-field .pr-flabel + .pr-filled { margin-bottom: 0; }
+.tk-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; }
+.tk-select { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border-radius: 6px; background: var(--canvas-2); font-size: 14px; color: var(--ink);
+  white-space: nowrap; max-width: 100%; transition: background-color .12s; }
+.tk-select:hover, .tk-select[aria-expanded=true], .tk-select.is-on { background: var(--press); }
+.tk-select.is-wide { width: 100%; }
+.tk-select > span:not(.off) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tk-select svg { width: 14px; height: 14px; color: var(--ink-3); flex-shrink: 0; }
+.tk-select .chev { width: 12px; height: 12px; margin-left: auto; transition: transform .18s var(--ease); }
+.tk-select[aria-expanded=true] .chev { transform: rotate(180deg); }
+.tk-select .off { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tk-sec-h { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 14px; line-height: 20px; font-weight: 500; }
+.tk-sched { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 10px 12px; margin-top: 14px; }
+.tk-sched .k { font-size: 13px; color: var(--ink-3); }
+.tk-sched .v { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.tk-days { gap: 4px; }
+.tk-day-btn { width: 42px; height: 32px; border-radius: 6px; background: var(--canvas-2); font-size: 13px; font-weight: 500; color: var(--ink-2); transition: background-color .12s, color .12s; }
+.tk-day-btn:hover { background: var(--press); color: var(--ink); }
+.tk-day-btn[aria-pressed=true] { background: var(--ink); color: var(--surface); }
+.tk-runs { margin-top: 16px; padding: 12px 14px; border-radius: 8px; background: var(--canvas); }
+.tk-runs .s { font-size: 14px; line-height: 20px; font-weight: 500; }
+.tk-runs .h { margin-top: 8px; font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.tk-runs ul { margin-top: 4px; font-size: 13px; line-height: 20px; color: var(--ink-2); }
+.tk-ai-wrap { position: relative; display: inline-flex; }
+.pb-menu.tk-ai { position: absolute; top: calc(100% + 6px); left: 0; width: 320px; padding: 14px; animation: pr-enter .18s var(--ease) both; }
+.tk-ai .pr-filled { min-height: 36px; padding: 7px 10px; }
+.tk-ai-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+.tk-hint { margin-top: 8px; font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.tk-form .pr-foot { position: static; padding: 12px 28px; }
+
+/* Casillas */
+.tr-checks { display: flex; gap: 24px; margin-top: 14px; }
+.tr-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.tr-check input { appearance: none; width: 16px; height: 16px; margin: 0; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line-strong); background: var(--surface); display: grid; place-content: center; transition: background-color .12s, box-shadow .12s; }
+.tr-check input:checked { background: var(--ink); box-shadow: none; }
+.tr-check input:checked::after { content: ''; width: 8px; height: 5px; border: 1.5px solid var(--surface); border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+.pb-menu.tr-scroll { max-height: 280px; overflow-y: auto; }
+
+/* Panel angosto (vista dividida): el panel se superpone a la agenda solo cuando se eligió algo */
+@container pr (width < 1000px) {
+  .tk-main-in { padding: 24px 20px 48px; }
+  .tk-hint-pill { display: none; }
+  .tk-toolbar { flex-wrap: wrap; }
+  .tk-panel, .tk-sheet[data-mode=form] .tk-panel { position: absolute; z-index: 10; top: 0; right: 0; bottom: 0; width: min(440px, 100%); box-shadow: var(--menu-shadow), 0 0 0 1px var(--line); }
+  .tk-sheet[data-explicit=false] .tk-panel { display: none; }
+  .tk-close { display: inline-flex; }
+  .tk-grid2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* El cuadro "AI" queda encima del resumen y crece hacia la izquierda desde el botón */
+.tk-sched { position: relative; z-index: 2; }
+.tk-ai-wrap { position: static; }
+.pb-menu.tk-ai { left: 76px; right: auto; top: 48px; width: min(340px, calc(100% - 76px)); }

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" class="notranslate bg-background light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Playbooks (original) - Magnar</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
+  <link rel="stylesheet" href="/styles/magnar.css" />
+  <link rel="stylesheet" href="/styles/magnar-extra.css" />
+  <style>
+    /* El flujo original trae su propio marco (sidebar + pestañas). Dentro del panel derecho se ocultan. */
+    .orig-host { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+    .orig-host [data-slot=sidebar] { display: none; }
+    .orig-host [data-drive-tab-strip] { display: none; }
+    .orig-host > [data-slot=sidebar-wrapper] { min-height: 0; height: 100%; }
+    .orig-host [data-slot=sidebar-inset] { height: 100%; margin: 0; }
+    .orig-host [role=tabpanel] { border: 0; margin: 0; border-radius: 0; }
+  </style>
+</head>
+<body class="min-h-svh bg-background font-sans antialiased">
+  <!--
+    Captura del "antes" sin tocar playbooks/: carga playbooks/app.js tal cual.
+    ?split=50   → lo monta en el panel derecho de una vista dividida (chat a la izquierda).
+    ?click=Text → hace click en el botón con ese texto (p. ej. "New Playbook").
+  -->
+  <div id="app"></div>
+  <script type="module">
+    import { html, render } from '/vendor/preact-htm.js';
+    import { Frame } from '/shared/split-shell.js';
+    const q = new URLSearchParams(location.search);
+    const split = q.get('split');
+    if (split) {
+      render(html`<${Frame} split=${Number(split)} tab=${{ title: 'NDA de Proveedores', icon: 'Books' }}><div id="root" class="orig-host"></div><//>`, document.getElementById('app'));
+    } else {
+      document.getElementById('app').id = 'root';
+    }
+    await import('/playbooks/app.js');
+    const click = q.get('click');
+    if (click) setTimeout(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === click)?.click(), 300);
+  </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+/*
+  Rediseño A: Índice + panel.
+  El layout responde al ancho del CONTENEDOR (container queries), no de la ventana.
+  Así funciona igual a pantalla completa y dentro de la vista dividida.
+  Ritmo de 4/8 px. Solo tokens de Magnar.
+*/
+.pa-host { container: pa / inline-size; display: flex; flex: 1; min-height: 0; min-width: 0; }
+.pa-root { position: relative; flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); overflow: hidden; }
+
+/* Índice */
+.pa-index { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+.pa-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: calc(var(--radius) - 2px); color: var(--foreground); transition: background-color .12s; }
+.pa-row:hover { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+.pa-row-on, .pa-row-on:hover { background: oklch(var(--tint-surface) var(--tint-hue)); }
+.pa-row-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; line-height: 16px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; }
+
+/* Zona principal */
+.pa-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.pa-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.pa-summary { max-width: 760px; padding: 32px 40px 64px; }
+.pa-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
+.pa-picker { display: none; }
+.pa-desc { max-width: 64ch; }
+
+/* Reglas: filas de 56px con divisor hairline */
+.pa-rules > li + li { border-top: 1px solid var(--border); }
+.pa-rule { position: relative; display: flex; align-items: center; gap: 8px; transition: background-color .12s; }
+.pa-rule:hover { background: color-mix(in oklab, var(--muted) 50%, transparent); }
+.pa-rule-on, .pa-rule-on:hover { background: oklch(var(--tint-wash) var(--tint-hue)); }
+.pa-rule-btn { display: flex; flex: 1; min-width: 0; align-items: center; gap: 16px; padding: 8px 8px; min-height: 56px; text-align: left; outline: none; }
+.pa-rule-btn:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); border-radius: 4px; }
+.pa-rule-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.pa-rule-ind { flex-shrink: 0; }
+.pa-rule-actions { display: flex; align-items: center; gap: 4px; padding-right: 8px; flex-shrink: 0; }
+
+/* Panel lateral (se superpone a la zona principal, nunca al índice) */
+.pa-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 20; width: min(480px, 100%);
+  display: flex; flex-direction: column; background: var(--background);
+  border-left: 1px solid var(--border);
+  box-shadow: -16px 0 32px -24px color-mix(in oklab, var(--foreground) 35%, transparent);
+  animation: pa-in .16s ease-out;
+}
+@keyframes pa-in { from { opacity: 0; transform: translateX(8px); } }
+.pa-panel-body { flex: 1; min-height: 0; overflow-y: auto; }
+.pa-panel-fields { padding: 20px 20px 24px; }
+.pa-only-narrow { display: none !important; }
+
+/* Expandido: ocupa todo el layout y pasa a 2 columnas (campos | vista previa) */
+.pa-panel[data-expanded] { left: 0; width: auto; border-left: 0; box-shadow: none; animation: none; }
+.pa-panel[data-expanded] .pa-panel-body { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); }
+.pa-panel[data-expanded] .pa-panel-fields { padding: 32px 40px; border-right: 1px solid var(--border); overflow-y: auto; }
+.pa-panel-preview { padding: 32px 40px; min-width: 0; overflow-y: auto; }
+.pa-panel[data-expanded] .pa-panel-body { overflow: hidden; }
+
+/* ---------------------------------------------------------------- contenedor angosto (< 760px)
+   El índice pasa a selector en el encabezado, las reglas usan todo el ancho
+   y el panel se abre como hoja que cubre el contenedor, con "← Back". */
+@container pa (width < 760px) {
+  .pa-root { grid-template-columns: minmax(0, 1fr); }
+  .pa-index { display: none; }
+  .pa-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 44px; flex-shrink: 0; padding: 0 8px; border-bottom: 1px solid var(--border); }
+  .pa-summary { padding: 24px 16px 48px; }
+  .pa-rule-btn { flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 8px; }
+  .pa-panel, .pa-panel[data-expanded] { left: 0; width: auto; border-left: 0; box-shadow: none; }
+  .pa-panel[data-expanded] .pa-panel-body { display: block; overflow-y: auto; }
+  .pa-panel[data-expanded] .pa-panel-fields { padding: 20px 16px; border-right: 0; }
+  .pa-panel-fields { padding: 20px 16px; }
+  .pa-panel-preview { display: none; }
+  .pa-only-narrow { display: inline-flex !important; }
+  .pa-hide-narrow { display: none !important; }
+}

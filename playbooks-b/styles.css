@@ -1,0 +1,119 @@
+/*
+  Rediseño B: Documento.
+  Una sola columna de lectura (máx. 720px) con índice de reglas sticky a la derecha.
+  Container queries sobre el panel: funciona igual a pantalla completa y en vista dividida.
+  Ritmo de 4/8 px. Solo tokens de Magnar. Tamaños de texto: 13 / 14 / 15 / 16 + título serif.
+*/
+.pb-host { container: pb / inline-size; position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.pb-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* ---------------------------------------------------------------- biblioteca */
+.pb-page { padding: 24px 32px 64px; }
+.pb-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--border); font-size: 13px; color: var(--foreground); background: var(--background); transition: background-color .12s;
+}
+.pb-pill:hover, .pb-pill[aria-expanded=true] { background: var(--muted); }
+.pb-pill-on { background: oklch(var(--tint-wash) var(--tint-hue)); border-color: color-mix(in oklab, oklch(var(--tint-ink) var(--tint-hue)) 30%, transparent); }
+
+.pb-lhead, .pb-lrow { display: grid; grid-template-columns: minmax(0, 1fr) 72px 104px 96px 104px 136px; column-gap: 16px; align-items: center; }
+.pb-lhead { margin-top: 24px; padding: 0 8px 8px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
+.pb-list > li + li { border-top: 1px solid var(--border); }
+.pb-list { border-top: 1px solid var(--border); }
+.pb-lrow { min-height: 56px; padding: 8px; border-radius: 4px; font-size: 13px; color: var(--muted-foreground); transition: background-color .12s; }
+.pb-lrow:hover { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+.pb-lname { color: var(--foreground); }
+.pb-lmeta-inline { display: none; }
+
+/* ---------------------------------------------------------------- documento */
+.pb-doc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 720px) minmax(0, 1fr); column-gap: 48px; padding: 56px 32px 120px; }
+.pb-doc { grid-column: 2; min-width: 0; }
+.pb-doc-title { font-size: 34px; line-height: 42px; }
+.pb-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 16px; font-size: 13px; color: var(--muted-foreground); }
+
+.pb-rules { margin-top: 32px; border-top: 1px solid var(--border); }
+.pb-rule { position: relative; padding: 32px 0 24px; transition: opacity .18s; }
+.pb-rule + .pb-rule, .pb-insert + .pb-rule { border-top: 1px solid var(--border); }
+.pb-rule-title { font-size: 17px; line-height: 26px; font-weight: 500; letter-spacing: -0.005em; }
+.pb-dim { opacity: .4; }
+.pb-proposed { padding-left: 16px; padding-right: 12px; box-shadow: inset 2px 0 0 oklch(var(--tint-ink) var(--tint-hue)); background: oklch(var(--tint-wash) var(--tint-hue)); }
+
+.pb-edit-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; font-size: 12px;
+  color: var(--muted-foreground); opacity: 0; transition: opacity .12s, background-color .12s;
+}
+.pb-rule:hover .pb-edit-btn, .pb-edit-btn:focus-visible { opacity: 1; }
+.pb-edit-btn:hover { background: var(--muted); color: var(--foreground); }
+
+/* Escalera de posiciones: Ideal → Aceptable → Inaceptable, unidas por una línea fina */
+.pb-ladder { position: relative; margin-top: 16px; display: grid; row-gap: 12px; }
+.pb-ladder::before { content: ''; position: absolute; left: 3px; top: 10px; bottom: 10px; width: 1px; background: var(--border); }
+.pb-step { position: relative; display: grid; grid-template-columns: 128px minmax(0, 1fr); column-gap: 16px; align-items: start; }
+.pb-step-label { display: flex; align-items: center; gap: 12px; height: 28px; }
+.pb-step-label .rd-dot { position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--background); }
+.pb-proposed .pb-step-label .rd-dot { box-shadow: 0 0 0 3px oklch(var(--tint-wash) var(--tint-hue)); }
+.pb-step-text { font-size: 15px; line-height: 28px; min-height: 28px; }
+textarea.pb-step-text { padding-top: 0; padding-bottom: 0; }
+.pb-rule-editing .rd-inline { border-color: var(--border); }
+.pb-rule-editing .rd-inline:focus { border-color: var(--ring); }
+
+/* "+ Add rule" entre secciones: aparece en hover */
+.pb-insert { position: relative; height: 0; z-index: 2; }
+.pb-insert button {
+  position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--background); font-size: 12px; color: var(--muted-foreground);
+  opacity: 0; transition: opacity .12s;
+}
+.pb-insert::before { content: ''; position: absolute; left: 0; right: 0; top: -12px; height: 24px; }
+.pb-insert:hover button, .pb-insert button:focus-visible { opacity: 1; }
+.pb-insert button:hover { color: var(--foreground); }
+.pb-end { padding: 24px 0; border-top: 1px solid var(--border); }
+
+/* Índice de reglas sticky */
+.pb-outline-col { grid-column: 3; min-width: 0; }
+.pb-outline { position: sticky; top: 32px; max-width: 220px; }
+.pb-outline ol { border-left: 1px solid var(--border); }
+.pb-outline-link { display: block; margin-left: -1px; padding: 4px 0 4px 12px; border-left: 1px solid transparent; font-size: 13px; line-height: 18px; color: var(--muted-foreground); transition: color .12s; }
+.pb-outline-link:hover { color: var(--foreground); }
+.pb-outline-on { color: var(--foreground); border-left-color: var(--foreground); }
+
+/* Barra de cambios: flota sobre el documento solo cuando hay cambios */
+.pb-savebar {
+  position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 30;
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--background); font-size: 13px; white-space: nowrap;
+  box-shadow: 0 8px 24px -12px color-mix(in oklab, var(--foreground) 30%, transparent);
+  animation: pb-up .18s ease-out;
+}
+@keyframes pb-up { from { opacity: 0; transform: translate(-50%, 6px); } }
+
+/* ---------------------------------------------------------------- crear */
+.pb-create { max-width: 640px; margin: 0 auto; padding: 88px 32px 64px; }
+.pb-create-q { font-size: 32px; line-height: 40px; }
+.pb-create-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 32px; }
+
+/* ---------------------------------------------------------------- contenedor mediano: sin índice lateral */
+@container pb (width < 1100px) {
+  .pb-doc-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 720px) minmax(0, 1fr); column-gap: 0; }
+  .pb-outline-col { display: none; }
+  .pb-lhead, .pb-lrow { grid-template-columns: minmax(0, 1fr) 72px 104px 96px 104px; }
+  .pb-lhead > :last-child, .pb-lrow > :last-child { display: none; }
+}
+
+/* ---------------------------------------------------------------- contenedor angosto (< 760px, vista dividida) */
+@container pb (width < 760px) {
+  .pb-page { padding: 16px 16px 48px; }
+  .pb-lhead { display: none; }
+  .pb-lrow { display: block; }
+  .pb-lcol { display: none; }
+  .pb-lmeta-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--muted-foreground); }
+  .pb-doc-grid { display: block; padding: 32px 16px 96px; }
+  .pb-doc-title { font-size: 28px; line-height: 36px; }
+  .pb-step { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .pb-ladder::before { display: none; }
+  .pb-step-label { height: 20px; }
+  .pb-edit-btn { opacity: 1; }
+  .pb-create { padding: 40px 16px 48px; }
+  .pb-create-q { font-size: 26px; line-height: 34px; }
+}

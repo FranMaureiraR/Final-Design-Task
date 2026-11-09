@@ -1,0 +1,197 @@
+/*
+  Playbooks · versión final.
+  Una sola "escena" con 3 modos: full (biblioteca), split (biblioteca colapsada + ventana) y wide
+  (ventana a todo el ancho). Los anchos se animan y las cards se reubican con FLIP.
+  Layout por container queries (ancho del panel, no de la ventana). Solo tokens de Magnar.
+*/
+.pf-host {
+  container: pf / inline-size; display: flex; flex: 1; min-width: 0; min-height: 0;
+  --pf-line: color-mix(in oklab, var(--border) 70%, var(--background));          /* borde de cards (Magnar: border-border/70) */
+  --pf-line-strong: color-mix(in oklab, var(--foreground) 22%, var(--border));     /* borde del seleccionado (Figma #bebebe) */
+  --pf-ease: cubic-bezier(.2, .8, .2, 1);
+  --pf-dur: .42s;
+  --lib-w: clamp(300px, 31cqw, 427px);
+}
+section[role=tabpanel]:has(.pf-stage) { background: transparent; border-color: transparent; }
+
+.pf-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.pf-scroll:hover { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* ---------------------------------------------------------------- escena */
+.pf-stage { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; gap: 8px; }
+.pf-lib {
+  flex: none; width: 100cqw; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--background); border: 1px solid var(--pf-line); border-radius: 12px;
+  transition: width var(--pf-dur) var(--pf-ease), opacity .25s ease, margin var(--pf-dur) var(--pf-ease);
+}
+.pf-lib-inner { width: 100cqw; }                 /* ancho fijo: las cards no se reacomodan durante la animación */
+.pf-stage[data-mode=split] .pf-lib { width: var(--lib-w); }
+.pf-stage[data-mode=split] .pf-lib-inner { width: var(--lib-w); }
+.pf-stage[data-mode=wide] .pf-lib { width: 0; opacity: 0; margin-right: -8px; border-width: 0; }
+.pf-stage[data-mode=wide] .pf-lib-inner { width: var(--lib-w); }
+
+.pf-pane { position: relative; flex: 1; min-width: 0; min-height: 0; }
+.pf-pane-clip {
+  position: absolute; inset: 0; display: flex; justify-content: flex-end; overflow: hidden;
+  background: var(--background); border: 1px solid var(--pf-line); border-radius: 12px;
+  animation: pf-pane-in .32s ease-out;
+}
+@keyframes pf-pane-in { from { opacity: 0; } }
+.pf-pane-inner { flex: none; width: calc(100cqw - var(--lib-w) - 8px); min-height: 0; display: flex; flex-direction: column; }
+.pf-stage[data-mode=wide] .pf-pane-inner { width: 100cqw; }
+
+/* Controles de la ventana: cerrar (X) y expandir (chevron, en el borde) */
+.pf-close { position: absolute; top: 14px; right: 14px; z-index: 3; }
+.pf-grip {
+  position: absolute; z-index: 4; top: 50%; left: -11px; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px;
+  border-radius: 6px; border: 1px solid var(--pf-line); background: var(--background); color: var(--muted-foreground);
+  transition: color .12s, border-color .12s, left var(--pf-dur) var(--pf-ease);
+}
+.pf-grip:hover { color: var(--foreground); border-color: var(--border); }
+.pf-stage[data-mode=wide] .pf-grip { left: 6px; }
+
+/* ---------------------------------------------------------------- tipografía */
+.pf-title { font-family: 'Newsreader', var(--title-font); font-weight: 400; font-size: 32px; line-height: 40px; letter-spacing: -0.01em; color: var(--foreground); }
+.pf-lead { font-size: 15px; line-height: 28px; color: var(--muted-foreground); }
+.pf-h { font-size: 18px; line-height: 28px; font-weight: 600; }
+.pf-eyebrow { font-size: 11px; line-height: 16px; letter-spacing: .04em; text-transform: uppercase; font-weight: 500; color: var(--muted-foreground); }
+.pf-num { font-variant-numeric: tabular-nums; }
+.pf-label { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--foreground); }
+.pf-note { font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
+
+/* ---------------------------------------------------------------- cabecera Knowledge */
+.pf-lib-pad { padding: 32px 40px 64px; transition: padding var(--pf-dur) var(--pf-ease); }
+.pf-stage:not([data-mode=full]) .pf-lib-pad { padding: 24px 16px 32px; }
+.pf-khead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px; height: 28px; }
+.pf-tabs { display: flex; align-items: center; gap: 24px; height: 49px; margin-top: 16px; padding: 0 16px; border-bottom: 1px solid var(--border); transition: gap var(--pf-dur) var(--pf-ease); }
+.pf-stage:not([data-mode=full]) .pf-tabs { gap: 20px; margin-top: 12px; }
+.pf-tab { display: inline-flex; align-items: center; height: 32px; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--muted-foreground); border-bottom: 2px solid transparent; transition: color .12s; white-space: nowrap; }
+.pf-tab:hover { color: var(--foreground); }
+.pf-tab.is-on { color: var(--foreground); border-bottom-color: var(--foreground); }
+.pf-tab-label { display: inline-block; overflow: hidden; max-width: 120px; margin-left: 6px; transition: max-width var(--pf-dur) var(--pf-ease), opacity .2s ease, margin var(--pf-dur) var(--pf-ease); }
+.pf-tab.is-shut .pf-tab-label { max-width: 0; opacity: 0; margin-left: 0; }
+.pf-only-full, .pf-only-split { transition: opacity .2s ease; }
+.pf-stage:not([data-mode=full]) .pf-only-full { display: none; }
+.pf-stage[data-mode=full] .pf-only-split { display: none; }
+.pf-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; color: var(--muted-foreground); transition: background-color .12s, color .12s; }
+.pf-iconbtn:hover { background: var(--muted); color: var(--foreground); }
+
+/* ---------------------------------------------------------------- búsqueda */
+.pf-search { position: relative; display: block; width: 256px; max-width: 100%; }
+.pf-search input { width: 100%; height: 28px; padding: 0 10px 0 32px; border-radius: 8px; border: 1px solid transparent; background: color-mix(in oklab, var(--muted) 60%, transparent); font-size: 14px; line-height: 20px; outline: none; transition: border-color .12s, box-shadow .12s; }
+.pf-search input::placeholder { color: var(--muted-foreground); }
+.pf-search input:focus { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); }
+.pf-search svg { position: absolute; left: 10px; top: 6px; color: var(--muted-foreground); pointer-events: none; }
+
+/* ---------------------------------------------------------------- cards (estilo Figma: A/Index row) */
+.pf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.pf-stage:not([data-mode=full]) .pf-cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.pf-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 16px 12px; min-width: 0;
+  border: 1px solid var(--pf-line); border-radius: 8px; background: var(--background); color: var(--foreground);
+  text-align: left; transition: border-color .15s, background-color .15s;
+}
+.pf-card:hover { border-color: var(--border); background: color-mix(in oklab, var(--muted) 40%, var(--background)); }
+.pf-card.is-on, .pf-card.is-on:hover { background: color-mix(in oklab, var(--muted) 70%, var(--background)); border-color: var(--pf-line-strong); }
+.pf-card-top { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pf-card-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pf-card-desc { font-size: 12px; line-height: 16px; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 32px; }
+.pf-meta { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; line-height: 16px; color: var(--muted-foreground); white-space: nowrap; }
+.pf-sep { opacity: .6; }
+.pf-vis { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; background: color-mix(in oklab, var(--muted) 85%, var(--background)); color: var(--muted-foreground); }
+.pf-dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; background: var(--foreground); opacity: .55; }
+.pf-create { width: 100%; max-width: 262px; padding-block: 14px; }
+.pf-create .pf-card-desc { min-height: 0; -webkit-line-clamp: 1; }
+
+/* ---------------------------------------------------------------- páginas de la ventana */
+.pf-page { width: 100%; max-width: 680px; margin: 0 auto; padding: 72px 40px 96px; }
+.pf-center { min-height: 100%; display: flex; flex-direction: column; }
+.pf-center > .pf-page { margin-block: auto; padding-top: 56px; }
+.pf-fixed { display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; background: color-mix(in oklab, var(--muted) 60%, transparent); font-size: 14px; color: var(--muted-foreground); white-space: nowrap; }
+.pf-hr { border: 0; border-top: 1px solid var(--pf-line); margin: 32px 0 0; }
+.pf-detail-head { display: flex; align-items: flex-start; gap: 16px; }
+.pf-save { display: flex; align-items: center; gap: 8px; height: 40px; flex-shrink: 0; font-size: 13px; line-height: 20px; color: var(--muted-foreground); white-space: nowrap; }
+.pf-back { display: none; }
+
+/* ---------------------------------------------------------------- reglas */
+.pf-rules-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; }
+.pf-empty { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 14px 14px 16px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; line-height: 20px; color: var(--muted-foreground); }
+.pf-rules { display: flex; flex-direction: column; gap: 8px; }
+
+/* Card de regla: 3 estados que se distinguen a simple vista
+   - cerrada: número, título y una línea de vista previa
+   - leyendo: el texto completo como documento; "Edit" en el encabezado
+   - editando / nueva: borde más marcado, título como campo, texto en un área de escritura y pie con acciones */
+.pf-rule { position: relative; border: 1px solid var(--pf-line); border-radius: 8px; background: var(--background); transition: border-color .15s, box-shadow .15s, background-color .15s; }
+.pf-rule:hover { border-color: var(--border); }
+.pf-rule.is-open { border-color: var(--border); }
+.pf-rule.is-edit { border-color: var(--pf-line-strong); box-shadow: 0 0 0 3px color-mix(in oklab, var(--muted) 90%, transparent); }
+.pf-rule.is-fresh { animation: pf-fresh 1s ease-out; }
+.pf-rule.is-fresh-hold { background: oklch(var(--tint-wash) var(--tint-hue)); }
+@keyframes pf-fresh { from { background: oklch(var(--tint-wash) var(--tint-hue)); } to { background: var(--background); } }
+
+.pf-rule-head { display: flex; align-items: flex-start; gap: 14px; min-height: 56px; padding: 10px 10px 10px 14px; }
+.pf-rule-hit { position: absolute; inset: 0 0 auto 0; height: 56px; border-radius: 8px; outline: none; }
+.pf-rule-hit:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); }
+.pf-rule-n { width: 20px; flex-shrink: 0; padding-top: 8px; font-size: 12px; line-height: 20px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.pf-rule-text { display: flex; flex-direction: column; min-width: 0; flex: 1; padding-top: 0; }
+.pf-rule-title { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-top: 8px; }
+.pf-rule-title.is-empty { color: var(--muted-foreground); font-weight: 400; }
+.pf-rule-preview { font-size: 13px; line-height: 18px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-rule.is-open .pf-rule-preview { display: none; }
+.pf-rule-tools { position: relative; z-index: 2; display: flex; align-items: center; gap: 2px; padding-top: 4px; flex-shrink: 0; }
+.pf-rule-tools .pf-hover { opacity: 0; transition: opacity .12s, background-color .12s, color .12s; }
+.pf-rule:hover .pf-hover, .pf-rule .pf-hover:focus-visible, .pf-rule.is-open .pf-hover { opacity: 1; }
+.pf-caret { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; color: var(--muted-foreground); pointer-events: none; transition: transform .18s ease-out; }
+.pf-rule.is-open .pf-caret { transform: rotate(180deg); }
+.pf-chip { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 5px; font-size: 11px; line-height: 16px; font-weight: 500; color: var(--muted-foreground); background: var(--muted); }
+.pf-chip.is-new { color: oklch(var(--tint-ink) var(--tint-hue)); background: oklch(var(--tint-wash) var(--tint-hue)); }
+.pf-edit-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 6px; font-size: 13px; color: var(--muted-foreground); transition: background-color .12s, color .12s; }
+.pf-edit-btn:hover { background: var(--muted); color: var(--foreground); }
+
+.pf-rule-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .18s ease-out; }
+.pf-rule.is-open .pf-rule-body { grid-template-rows: 1fr; }
+.pf-rule-inner { min-height: 0; overflow: hidden; }
+.pf-rule-pad { padding: 0 14px 16px 48px; }
+/* leyendo: el texto como documento */
+.pf-rule-doc { max-width: 68ch; font-size: 14px; line-height: 1.65; color: color-mix(in oklab, var(--foreground) 82%, var(--background)); }
+.pf-rule-doc p + p { margin-top: 6px; }
+.pf-rule-doc .is-empty { color: var(--muted-foreground); }
+/* editando */
+.pf-rule-titlein { display: block; width: 100%; padding: 6px 0 0; border: 0; outline: none; background: transparent; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--foreground); }
+.pf-rule-titlein::placeholder { color: var(--muted-foreground); font-weight: 400; }
+.pf-write { display: block; width: 100%; max-width: 68ch; min-height: calc(1.65em * 4 + 20px); padding: 10px 12px; border-radius: 6px; border: 1px solid transparent;
+  background: color-mix(in oklab, var(--muted) 55%, var(--background)); font: inherit; font-size: 14px; line-height: 1.65; color: var(--foreground);
+  outline: none; resize: none; field-sizing: content; transition: border-color .12s, background-color .12s, box-shadow .12s; }
+.pf-write::placeholder { color: var(--muted-foreground); }
+.pf-write:focus { background: var(--background); border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 35%, transparent); }
+.pf-hint { margin-top: 8px; font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
+.pf-rule-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
+.pf-del { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; line-height: 20px; color: color-mix(in oklab, var(--destructive) 80%, var(--muted-foreground)); border-radius: 6px; padding: 4px 6px; margin-left: -6px; transition: background-color .12s, color .12s; }
+.pf-del:hover { color: var(--destructive); background: color-mix(in oklab, var(--destructive) 8%, transparent); }
+
+/* Fila fantasma "+ Add rule" */
+.pf-add { display: flex; align-items: center; gap: 8px; width: 100%; height: 44px; margin-top: 8px; padding: 0 14px; border: 1px dashed transparent; border-radius: 8px; font-size: 13px; line-height: 20px; color: var(--muted-foreground); transition: border-color .12s, color .12s; }
+.pf-add:hover, .pf-add:focus-visible { border-color: var(--border); color: var(--foreground); outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-lib, .pf-rule-body, .pf-caret, .pf-tab-label, .pf-grip { transition: none; }
+  .pf-rule.is-fresh, .pf-pane-clip { animation: none; }
+}
+
+/* ---------------------------------------------------------------- panel angosto (< 760px): vista dividida */
+@container pf (width < 760px) {
+  .pf-host { --lib-w: 0px; }
+  .pf-stage:not([data-mode=full]) .pf-lib { width: 0; opacity: 0; margin-right: -8px; border-width: 0; }
+  .pf-pane-inner, .pf-stage[data-mode=wide] .pf-pane-inner { width: 100cqw; }
+  .pf-grip, .pf-close { display: none; }
+  .pf-back { display: inline-flex; }
+  .pf-page { padding: 24px 20px 64px; }
+  .pf-center > .pf-page { margin-block: 0; padding-top: 24px; }
+  .pf-lib-pad { padding: 24px 16px 48px; }
+  .pf-detail-head { flex-wrap: wrap; gap: 4px 16px; }
+  .pf-rule-pad { padding-left: 14px; }
+  .pf-fields { flex-wrap: wrap; }
+  .pf-fields > .pf-name { flex-basis: 100%; }
+}
