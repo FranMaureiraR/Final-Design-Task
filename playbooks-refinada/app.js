@@ -115,7 +115,14 @@ function SwapGroup({ label, count, ps, per, initialPage, renderRows, head }) {
   const [page, setPage] = useState(Math.min(initialPage || 0, pages - 1));
   const [dir, setDir] = useState(0);
   useEffect(() => { if (page > pages - 1) setPage(pages - 1); }, [pages]);
-  const to = (i) => { const n = Math.max(0, Math.min(pages - 1, i)); if (n === page) return; setDir(n > page ? 1 : -1); setPage(n); };
+  // El alto de la caja se anima entre una página y otra: si la nueva tiene menos filas, lo de abajo sube suave (y baja al volver).
+  const box = useRef(); const h0 = useRef(null);
+  const to = (i) => { const n = Math.max(0, Math.min(pages - 1, i)); if (n === page) return; h0.current = box.current?.offsetHeight ?? null; setDir(n > page ? 1 : -1); setPage(n); };
+  useLayoutEffect(() => {
+    const el = box.current, from = h0.current; h0.current = null; if (!el || from == null) return;
+    const to = el.offsetHeight; if (Math.abs(to - from) < 1 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    el.animate([{ height: from + 'px', overflow: 'hidden' }, { height: to + 'px', overflow: 'hidden' }], { duration: 320, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }, [page]);
   const rows = ps.slice(page * per, page * per + per);
   return html`<section class="pr-group">
     <div class="pr-group-h"><h2 class="pb-eyebrow" data-flip=${'h-' + label}>${label}<span class="c">· ${count}</span></h2>
@@ -125,7 +132,7 @@ function SwapGroup({ label, count, ps, per, initialPage, renderRows, head }) {
         <button type="button" class="arw" aria-label="Next page" disabled=${page === pages - 1} onClick=${() => to(page + 1)}><${Icon} name="CaretRight" /></button>
       </span>`}</div>
     ${head}
-    <div class="pr-swap" style=${`--per:${Math.min(per, ps.length)}`}>
+    <div class="pr-swap" ref=${box}>
       <div class="pr-list" data-swap=${dir ? (dir > 0 ? 'next' : 'prev') : undefined} key=${'p' + page}>${renderRows(rows)}</div>
     </div>
   </section>`;

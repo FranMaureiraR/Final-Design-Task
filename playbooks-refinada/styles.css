@@ -341,9 +341,7 @@ textarea.pr-filled { min-height: 104px; line-height: 24px; max-width: 100%; }
 
 /* Tabla (B): al cambiar de página las filas se reemplazan en el mismo lugar.
    Entran con un fundido y un desplazamiento de 6px hacia el lado de la página, escalonadas.
-   La caja guarda el alto de una página llena para que lo de abajo no se mueva. */
-.pr-swap { min-height: calc(var(--per) * 64px + 2px); }
-.pr-stage:not([data-mode=full]) .pr-swap { min-height: calc(var(--per) * 60px + 2px); }
+   El alto de la caja se anima (en app.js), así lo que está abajo sube o baja suave. */
 .pr-list[data-swap] .pr-li { animation: pr-swap-in .3s var(--ease) both; animation-delay: calc(var(--i) * 24ms); }
 .pr-list[data-swap=next] .pr-li { --from: 6px; }
 .pr-list[data-swap=prev] .pr-li { --from: -6px; }
@@ -362,3 +360,8 @@ textarea.pr-filled { min-height: 104px; line-height: 24px; max-width: 100%; }
 .pr-pane .pr-filled { background: var(--surface); border-color: var(--line); border-radius: 8px; }
 .pr-pane .pr-filled:hover { background: var(--surface); border-color: var(--line-strong); }
 .pr-pane .pr-filled:focus { border-color: var(--ink-3); outline: none; box-shadow: 0 0 0 3px oklch(var(--tint-ink) var(--tint-hue) / .10); }
+
+/* Crear: la botonera queda abajo del panel aunque el formulario sea corto */
+.pr-scroll:has(> .pr-create) { display: flex; flex-direction: column; }
+.pr-scroll > .pr-create { flex: 1 0 auto; }
+.pr-scroll > .pr-create + .pr-foot { flex-shrink: 0; }
