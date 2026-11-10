@@ -21,6 +21,8 @@ import { cx, Tip, MenuButton, SearchBox, ghost, holdAnchor } from '../shared/pb-
 import { EmptyState, SaveBar, SIDEBAR_LINKS } from '../shared/pr-ui.js';
 import { WEEKDAYS, defaultSchedule, fmtTime, summary, nextRuns, tzOffset } from '../tasks/schedule.js';
 
+const VIEW_ONLY = true;
+
 // ------------------------------------------------------------ datos de muestra (simples a propósito)
 const sch = (p) => ({ ...defaultSchedule(), tz: 'America/Santiago', ...p });
 const ago = (days, h = 9) => { const d = new Date(); d.setDate(d.getDate() - days); d.setHours(h, 0, 0, 0); return d; };
@@ -113,7 +115,7 @@ const Status = ({ t, running }) => html`<span class=${cx('tk-st', t.status === '
 const lead = (t) => html`<span class=${cx('pb-vis', t.status === 'paused' ? 'tf-paused' : 'is-shared')}><${Icon} name=${t.status === 'paused' ? 'Pause' : 'Clock'} /></span>`;
 function TaskRow({ t, selected, running, fresh, dirty, go, menu }) {
   const n = nextOf(t);
-  return html`<div data-tid=${t.id} class=${cx('pr-li tf-li', selected && 'is-on', t.status === 'paused' && 'is-paused', fresh && 'pb-flash')} role="link" tabindex="0" aria-label=${t.name}
+  return html`<div data-tid=${t.id} class=${cx('pr-li tf-li', selected && 'is-on', t.status === 'paused' && 'is-paused', fresh && 'pb-flash')} role=${VIEW_ONLY ? undefined : 'link'} tabindex=${VIEW_ONLY ? undefined : '0'} aria-label=${t.name}
     aria-current=${selected ? 'page' : undefined} onClick=${() => go(t.id)} onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); go(t.id); } }}>
     ${lead(t)}
     <span class="main"><span class="name"><span>${t.name}</span>${dirty && html`<span class="pr-dot" title="Unsaved changes"></span>`}${t.unread && html`<span class="tk-unread" title="Unread result">Unread result</span>`}</span>
@@ -121,7 +123,7 @@ function TaskRow({ t, selected, running, fresh, dirty, go, menu }) {
     <span class="col num">${freq(t.schedule)}</span>
     <span class="col num">${running ? 'Now' : n ? nextLabel(n) : '—'}</span>
     <span class="col st"><${Status} t=${t} running=${running} /></span>
-    <span class="pr-more" onClick=${(e) => e.stopPropagation()} onKeyDown=${(e) => e.stopPropagation()}>${menu(t)}</span>
+    <span class="pr-more" onClick=${(e) => e.stopPropagation()} onKeyDown=${(e) => e.stopPropagation()}>${!VIEW_ONLY && menu(t)}</span>
     <span class="chev"><${Icon} name="CaretRight" /></span>
   </div>`;
 }
@@ -245,7 +247,9 @@ function Resizer({ hostRef, onHide, onCommit }) {
 // ------------------------------------------------------------ app
 let seq = 0;
 function App() {
-  const { path, params, nav } = useHashState();
+  const { path: rawPath, params, nav } = useHashState();
+  // Solo vista: en esta entrega no se abre ni se crea una task (la lista, las pestañas y el buscador siguen funcionando).
+  const path = VIEW_ONLY ? '' : rawPath;
   const [tasks, setTasks] = useState(() => (params.empty ? [] : SEED));
   const [drafts, setDrafts] = useState({});
   const [newDraft, setNewDraft] = useState(null);
@@ -283,6 +287,7 @@ function App() {
   const shown = sorted.filter((t) => (status === 'all' || t.status === status) && (!q.trim() || (t.name + ' ' + t.instructions).toLowerCase().includes(q.trim().toLowerCase())));
 
   const go = (p, qp = {}) => {
+    if (VIEW_ONLY && p) return;
     if (compact && p && p !== path) ghost(document.querySelector('.pr-pane-inner > .pr-scroll'), 200);
     // Al abrir o cerrar, la fila elegida se queda donde estaba aunque el bloque de Magnar se pliegue
     if (!p !== !compact) { ghost(document.querySelector('.pr-lib .pr-scroll'), 200); const id = p && p !== 'new' ? p : path; if (id && id !== 'new') holdAnchor(`.tf-li[data-tid="${id}"]`); }

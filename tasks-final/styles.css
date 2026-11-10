@@ -127,3 +127,7 @@
 .tk-st.is-fail i { background: var(--destructive); }
 .pr-pane-inner > .pr-foot { position: static; }
 @container pane (width < 560px) { .tf-pane { padding: 20px 16px 96px; } .tf-row { grid-template-columns: 96px minmax(0, 1fr); } }
+
+/* Solo vista: las filas no se abren, así que no muestran mano ni chevron que se mueve */
+.tf-host .tf-li:not([role]) { cursor: default; }
+.tf-host .tf-li:not([role]):hover .chev { color: var(--ink-3); transform: none; }
