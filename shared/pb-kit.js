@@ -260,10 +260,20 @@ export function usePreview(forced) {
   const [st, setSt] = useState(forced ? { id: forced, forced: true } : null);
   const t = useRef(); const open = useRef(!!forced); const closedAt = useRef(0);
   const touch = typeof matchMedia !== 'undefined' && matchMedia('(hover: none)').matches;
+  // Mientras se hace scroll no se abre: las filas pasan bajo el mouse y la vista previa saltaba de una a otra.
+  // Al hacer scroll se cierra la que esté abierta, y vuelve a abrir solo con el mouse quieto sobre una card.
+  const scrolledAt = useRef(0);
+  const scrolling = () => Date.now() - scrolledAt.current < 400;
+  useEffect(() => {
+    const on = () => { scrolledAt.current = Date.now(); if (open.current || t.current) { clearTimeout(t.current); t.current = null; if (open.current) { open.current = false; setSt(null); } } };
+    addEventListener('wheel', on, { passive: true, capture: true }); addEventListener('scroll', on, { passive: true, capture: true });
+    return () => { removeEventListener('wheel', on, { capture: true }); removeEventListener('scroll', on, { capture: true }); };
+  }, []);
   const show = (id, el) => {
     clearTimeout(t.current);
+    if (scrolling()) return;
     if (open.current || Date.now() - closedAt.current < 300) { open.current = true; setSt({ id, el, swap: true }); return; }
-    t.current = setTimeout(() => { open.current = true; setSt({ id, el }); }, 450);
+    t.current = setTimeout(() => { t.current = null; if (scrolling() || !el.matches(':hover, :focus-within, :focus')) return; open.current = true; setSt({ id, el }); }, 450);
   };
   const hide = () => {
     clearTimeout(t.current);
@@ -277,6 +287,8 @@ export function usePreview(forced) {
   const close = () => { clearTimeout(t.current); open.current = false; setSt(null); };
   const bind = (id) => (touch ? {} : {
     onMouseEnter: (e) => show(id, e.currentTarget), onMouseLeave: hide,
+    // Después de un scroll, la vista previa vuelve recién cuando el mouse se mueve sobre la card
+    onMouseMove: (e) => { if (!open.current && !t.current && !scrolling()) show(id, e.currentTarget); },
     onFocus: (e) => show(id, e.currentTarget), onBlur: hide,
     onKeyDown: (e) => { if (e.key === 'Escape') close(); },
   });
@@ -368,4 +380,25 @@ export function scrollToIn(box, target, offset = 24) {
   const t0 = performance.now();
   const step = (t) => { const k = Math.min(1, (t - t0) / 200); box.scrollTop = from + (to - from) * (1 - Math.pow(1 - k, 3)); if (k < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
+}
+
+// ------------------------------------------------------------ fila quieta al cambiar de modo
+// Al abrir o cerrar un panel, lo que hay arriba de la lista cambia de alto (barra de filtros, bloque de Magnar)
+// y la fila elegida saltaba. Apenas cambia el modo, la columna se mueve lo que haga falta por scroll y,
+// si no le queda scroll, se anima desde donde estaba (FLIP), así la fila se desliza en vez de saltar.
+export function holdAnchor(selector) {
+  const first = document.querySelector(selector); if (!first) return;
+  const y0 = first.getBoundingClientRect().top;
+  const stage = first.closest('.pr-stage'); const m0 = stage && stage.dataset.mode;
+  let frames = 0;
+  const wait = () => {
+    if (stage && stage.dataset.mode === m0 && frames++ < 30) return requestAnimationFrame(wait);
+    const el = document.querySelector(selector); if (!el) return;
+    const sc = el.closest('.pr-scroll'), pad = el.closest('.pr-lib-pad');
+    let d = el.getBoundingClientRect().top - y0;
+    if (sc && Math.abs(d) > 0.5) { const before = sc.scrollTop; sc.scrollTop = before + d; d -= sc.scrollTop - before; }
+    if (pad && Math.abs(d) > 0.5 && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+      pad.animate([{ transform: `translateY(${-d}px)` }, { transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  };
+  requestAnimationFrame(wait);
 }

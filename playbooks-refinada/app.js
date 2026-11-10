@@ -18,7 +18,7 @@ import { splitParam, COUNTRY_NAMES, relTime } from '../shared/playbooks-seed.js'
 import { useHashState } from '../shared/redesign-ui.js';
 import {
   cx, SEED, visLabel, visIcon, plural, countryName, newRule, same, todayIso, firstLine, Tip,
-  MenuButton, SearchBox, FilterPills, EMPTY_FILTERS, activeCount, applyFilters, usePreview, Preview, snapshot, playFlip, scrollToIn, ghost,
+  MenuButton, SearchBox, FilterPills, EMPTY_FILTERS, activeCount, applyFilters, usePreview, Preview, snapshot, playFlip, scrollToIn, ghost, holdAnchor,
 } from '../shared/pb-kit.js';
 import { Tabs, EmptyState, SECTION_EMPTY, SaveBar, SIDEBAR_LINKS } from '../shared/pr-ui.js';
 
@@ -79,8 +79,8 @@ function Row({ pb, selected, dirty, peek, flip, go, bind }) {
   </a>`;
 }
 // Fila de lista (versión B): columnas alineadas y chevron a la derecha que abre el playbook al lado.
-function ListRow({ pb, selected, dirty, peek, go, bind, askDelete }) {
-  return html`<div data-pid=${pb.id} class=${cx('pr-li', selected && 'is-on', peek && 'is-peek')} ...${bind} ...${open(go, pb.id)} aria-label=${pb.name} aria-current=${selected ? 'page' : undefined}>
+function ListRow({ pb, i = 0, selected, dirty, peek, go, bind, askDelete }) {
+  return html`<div data-pid=${pb.id} style=${'--i:' + i} class=${cx('pr-li', selected && 'is-on', peek && 'is-peek')} ...${bind} ...${open(go, pb.id)} aria-label=${pb.name} aria-current=${selected ? 'page' : undefined}>
     <span class=${'pb-vis is-' + pb.visibility} title=${visLabel(pb.visibility)}><${Icon} name=${visIcon(pb.visibility)} /></span>
     <span class="main"><span class="name"><span data-anchor>${pb.name}</span>${dirty && html`<span class="pr-dot" title="Unsaved changes"></span>`}</span><span class="d">${pb.description || 'No description'}</span></span>
     <span class="col num">${plural(pb.rules.length, 'rule', 'rules')}</span>
@@ -108,6 +108,28 @@ function usePages(count, per, initial = 0) {
   return { track, onScroll, controls, pages };
 }
 // Grupo paginado: las páginas se deslizan con scroll-snap. "head" va entre el título y las páginas (encabezado de tabla).
+// Tabla (B): las páginas no se deslizan; las filas cambian en el mismo lugar con una transición corta.
+// La caja guarda el alto de una página llena, así lo que está abajo no se mueve.
+function SwapGroup({ label, count, ps, per, initialPage, renderRows, head }) {
+  const pages = Math.max(1, Math.ceil(ps.length / per));
+  const [page, setPage] = useState(Math.min(initialPage || 0, pages - 1));
+  const [dir, setDir] = useState(0);
+  useEffect(() => { if (page > pages - 1) setPage(pages - 1); }, [pages]);
+  const to = (i) => { const n = Math.max(0, Math.min(pages - 1, i)); if (n === page) return; setDir(n > page ? 1 : -1); setPage(n); };
+  const rows = ps.slice(page * per, page * per + per);
+  return html`<section class="pr-group">
+    <div class="pr-group-h"><h2 class="pb-eyebrow" data-flip=${'h-' + label}>${label}<span class="c">· ${count}</span></h2>
+      ${pages > 1 && html`<span class="pr-pager">
+        <span class="dots">${Array.from({ length: pages }, (_, i) => html`<button type="button" aria-label=${'Page ' + (i + 1)} aria-current=${i === page ? 'true' : undefined} onClick=${() => to(i)}></button>`)}</span>
+        <button type="button" class="arw" aria-label="Previous page" disabled=${page === 0} onClick=${() => to(page - 1)}><${Icon} name="CaretLeft" /></button>
+        <button type="button" class="arw" aria-label="Next page" disabled=${page === pages - 1} onClick=${() => to(page + 1)}><${Icon} name="CaretRight" /></button>
+      </span>`}</div>
+    ${head}
+    <div class="pr-swap" style=${`--per:${Math.min(per, ps.length)}`}>
+      <div class="pr-list" data-swap=${dir ? (dir > 0 ? 'next' : 'prev') : undefined} key=${'p' + page}>${renderRows(rows)}</div>
+    </div>
+  </section>`;
+}
 function PagedGroup({ label, count, ps, per, initialPage, renderPage, head }) {
   const pg = usePages(ps.length, per, initialPage);
   const pages = []; for (let i = 0; i < ps.length; i += per) pages.push(ps.slice(i, i + per));
@@ -137,9 +159,9 @@ function Library({ all, state, setState, mode, section, setSection, selectedId, 
     if (!ps.length) return null;
     // Versión B: la misma tabla a pantalla completa y en la columna (5 filas por página); al achicarse
     // se esconden Rules / Country / Edited y quedan nombre, descripción con "…" y chevron.
-    if (LIST) return html`<${PagedGroup} key=${key} label=${label} count=${cnt(total, ps)} ps=${ps} per=${5} initialPage=${key === 'mine' ? initialPage : 0}
+    if (LIST) return html`<${SwapGroup} key=${key} label=${label} count=${cnt(total, ps)} ps=${ps} per=${5} initialPage=${key === 'mine' ? initialPage : 0}
       head=${html`<div class="pr-thead" aria-hidden="true"><span class="nm">Name</span><span>Rules</span><span>Country</span><span>Edited</span><span></span><span></span></div>`}
-      renderPage=${(p) => html`<div class="pr-page is-list"><div class="pr-list">${p.map((x) => html`<${ListRow} key=${x.id} pb=${x} selected=${x.id === selectedId} dirty=${isDirty(x.id)} peek=${prev.st?.id === x.id} go=${go} bind=${prev.bind(x.id)} askDelete=${setDel} />`)}</div></div>`} />`;
+      renderRows=${(p) => p.map((x, i) => html`<${ListRow} key=${x.id} i=${i} pb=${x} selected=${x.id === selectedId} dirty=${isDirty(x.id)} peek=${prev.st?.id === x.id} go=${go} bind=${prev.bind(x.id)} askDelete=${setDel} />`)} />`;
     if (compact) return html`<section class="pr-group">
       <h2 class="pb-eyebrow pr-group-h" data-flip=${'h-' + label}>${label}<span class="c">· ${cnt(total, ps)}</span></h2>
       <div class="pr-rows">${ps.map((p) => html`<${Row} key=${p.id} pb=${p} selected=${p.id === selectedId} dirty=${isDirty(p.id)} peek=${prev.st?.id === p.id} flip=${p.id === flipId} go=${go} bind=${prev.bind(p.id)} />`)}</div>
@@ -435,6 +457,8 @@ function App() {
     const changesMode = !p !== (mode === 'full');
     if (changesMode && !LIST) { setFlipId(p && p !== 'new' ? p : path); ghost(document.querySelector('.pr-lib .pr-scroll'), 200); snapshot(); }
     else if (!changesMode && p !== path) ghost(document.querySelector('.pr-pane-inner > .pr-scroll'), 200);
+    // B: la fila que se abre (o la que estaba abierta, al cerrar) no se mueve de su lugar en la pantalla
+    if (changesMode && LIST) { const id = p && p !== 'new' ? p : path; if (id && id !== 'new') holdAnchor(`.pr-li[data-pid="${id}"]`); }
     nav(p, q);
   };
   useLayoutEffect(playFlip, [mode, path]);

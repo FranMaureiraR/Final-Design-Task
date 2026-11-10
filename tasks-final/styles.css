@@ -8,7 +8,7 @@
 
 /* ---------------------------------------------------------------- home: pregunta a Magnar, al centro (como el home de Magnar) */
 /* Se pliega (alto a 0) cuando la lista pasa a columna. */
-.tf-ask { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .38s var(--ease), opacity .24s ease; }
+.tf-ask { display: grid; grid-template-rows: 1fr; }
 .tf-ask.is-hidden { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
 .tf-ask-in { min-height: 0; overflow: hidden; }
 .tf-ask-pad { width: 100%; max-width: 680px; margin: 0 auto; padding: 40px 0 8px; }
@@ -56,7 +56,10 @@
   font-size: 11px; line-height: 14px; font-weight: 500; color: var(--ink-3); transition: background-color .2s, color .2s; }
 .pr-tab.is-on .tf-count { background: var(--ink); color: var(--surface); }
 .tf-tools { display: flex; align-items: center; gap: 8px; align-self: center; margin-bottom: 6px; }
-.tf-colsearch { margin-top: 12px; }
+.tf-colsearch { padding-top: 12px; }
+/* Al abrir o cerrar, la columna cambia de una vez: lo anterior se desvanece encima (ghost) y la fila elegida se desliza (holdAnchor) */
+.tf-colsearch-wrap { display: none; }
+.tf-colsearch-wrap.is-on { display: block; }
 
 /* ---------------------------------------------------------------- tabla: Name · Frequency · Next run · Status */
 .tf-table { margin-top: 16px; padding: 0 4px; }

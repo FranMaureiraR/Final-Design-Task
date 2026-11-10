@@ -338,3 +338,27 @@ textarea.pr-filled { min-height: 104px; line-height: 24px; max-width: 100%; }
 .pr-card .r3 { gap: 12px; }
 .pr-card .r3 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pr-card .r3 > span:last-child { flex-shrink: 0; }
+
+/* Tabla (B): al cambiar de página las filas se reemplazan en el mismo lugar.
+   Entran con un fundido y un desplazamiento de 6px hacia el lado de la página, escalonadas.
+   La caja guarda el alto de una página llena para que lo de abajo no se mueva. */
+.pr-swap { min-height: calc(var(--per) * 64px + 2px); }
+.pr-stage:not([data-mode=full]) .pr-swap { min-height: calc(var(--per) * 60px + 2px); }
+.pr-list[data-swap] .pr-li { animation: pr-swap-in .3s var(--ease) both; animation-delay: calc(var(--i) * 24ms); }
+.pr-list[data-swap=next] .pr-li { --from: 6px; }
+.pr-list[data-swap=prev] .pr-li { --from: -6px; }
+@keyframes pr-swap-in { from { opacity: 0; transform: translateX(var(--from, 0)); } }
+
+/* Panel del playbook: sin serif. Título y descripción se ven como inputs sobrios:
+   borde fino siempre visible, sin relleno, y un poco más marcado al pasar el mouse o escribir. */
+.pr-detail .pr-head { align-items: center; }
+.pr-detail .pb-inline.pr-title, .pr-detail .pb-inline.pr-desc { margin: 0; padding: 7px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  font-family: Inter, var(--font-sans), system-ui, sans-serif; letter-spacing: -0.005em; transition: border-color .14s, box-shadow .14s, background-color .14s; }
+.pr-detail .pb-inline.pr-title { font-size: 18px; line-height: 26px; font-weight: 500; color: var(--ink); }
+.pr-detail .pb-inline.pr-desc { margin-top: 8px; max-width: none; padding: 8px 11px; font-size: 14px; line-height: 22px; color: var(--ink-2); }
+.pr-detail .pb-inline:hover { border-color: var(--line-strong); }
+.pr-detail .pb-inline:focus { border-color: var(--ink-3); outline: none; box-shadow: 0 0 0 3px oklch(var(--tint-ink) var(--tint-hue) / .10); color: var(--ink); }
+.pr-pane .pb-page-title { font-family: Inter, var(--font-sans), system-ui, sans-serif; font-size: 22px; line-height: 30px; font-weight: 600; letter-spacing: -0.01em; }
+.pr-pane .pr-filled { background: var(--surface); border-color: var(--line); border-radius: 8px; }
+.pr-pane .pr-filled:hover { background: var(--surface); border-color: var(--line-strong); }
+.pr-pane .pr-filled:focus { border-color: var(--ink-3); outline: none; box-shadow: 0 0 0 3px oklch(var(--tint-ink) var(--tint-hue) / .10); }

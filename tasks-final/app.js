@@ -17,7 +17,7 @@ import { AlertDialog } from '../shared/ui.js';
 import { Frame } from '../shared/split-shell.js';
 import { splitParam } from '../shared/playbooks-seed.js';
 import { useHashState } from '../shared/redesign-ui.js';
-import { cx, Tip, MenuButton, SearchBox, ghost } from '../shared/pb-kit.js';
+import { cx, Tip, MenuButton, SearchBox, ghost, holdAnchor } from '../shared/pb-kit.js';
 import { EmptyState, SaveBar, SIDEBAR_LINKS } from '../shared/pr-ui.js';
 import { WEEKDAYS, defaultSchedule, fmtTime, summary, nextRuns, tzOffset } from '../tasks/schedule.js';
 
@@ -282,7 +282,12 @@ function App() {
   const counts = { all: items.length, active: items.filter((t) => t.status === 'active').length, paused: items.filter((t) => t.status === 'paused').length };
   const shown = sorted.filter((t) => (status === 'all' || t.status === status) && (!q.trim() || (t.name + ' ' + t.instructions).toLowerCase().includes(q.trim().toLowerCase())));
 
-  const go = (p, qp = {}) => { if (compact && p && p !== path) ghost(document.querySelector('.pr-pane-inner > .pr-scroll'), 200); nav(p, qp); };
+  const go = (p, qp = {}) => {
+    if (compact && p && p !== path) ghost(document.querySelector('.pr-pane-inner > .pr-scroll'), 200);
+    // Al abrir o cerrar, la fila elegida se queda donde estaba aunque el bloque de Magnar se pliegue
+    if (!p !== !compact) { ghost(document.querySelector('.pr-lib .pr-scroll'), 200); const id = p && p !== 'new' ? p : path; if (id && id !== 'new') holdAnchor(`.tf-li[data-tid="${id}"]`); }
+    nav(p, qp);
+  };
   const upd = (id, fn) => setTasks((ts) => ts.map((t) => (t.id === id ? fn(t) : t)));
   const runNow = (t) => {
     const at = new Date(); setRunning(t.id); upd(t.id, (x) => ({ ...x, runs: [{ at, status: 'Running' }, ...x.runs] }));
@@ -330,7 +335,7 @@ function App() {
     : html`
       <div class="tf-sticky"><${StatusTabs} value=${status} onChange=${setStatus} counts=${counts}
         trailing=${!compact && html`<div class="tf-tools"><${SearchBox} value=${q} onInput=${setQ} placeholder="Search tasks" width="240px" />${newBtn(false)}</div>`} /></div>
-      ${compact && html`<div class="tf-colsearch"><${SearchBox} value=${q} onInput=${setQ} placeholder="Search tasks" width="100%" /></div>`}
+      <div class=${cx('tf-colsearch-wrap', compact && 'is-on')} inert=${!compact}><div><div class="tf-colsearch"><${SearchBox} value=${q} onInput=${setQ} placeholder="Search tasks" width="100%" /></div></div></div>
       ${shown.length ? html`<div class="tf-table">
           <div class="pr-thead" aria-hidden="true"><span class="nm">Name</span><span>Frequency</span><span>Next run</span><span class="st">Status</span><span></span><span></span></div>
           <div class="pr-list">${shown.map((t) => html`<${TaskRow} key=${t.id} t=${t} selected=${t.id === current?.id} running=${running === t.id} fresh=${fresh === t.id} dirty=${isDirty(t.id)} go=${go} menu=${menu} />`)}</div>
